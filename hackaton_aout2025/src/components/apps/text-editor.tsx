@@ -1,0 +1,795 @@
+import { useState, useRef, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { 
+  BoldIcon, 
+  ItalicIcon, 
+  UnderlineIcon,
+  StrikethroughIcon,
+  AlignLeftIcon,
+  AlignCenterIcon,
+  AlignRightIcon,
+  AlignJustifyIcon,
+  ListIcon,
+  ListOrderedIcon,
+  QuoteIcon,
+  CodeIcon,
+  LinkIcon,
+  ImageIcon,
+  FileTextIcon,
+  SaveIcon,
+  DownloadIcon,
+  UploadIcon,
+  SearchIcon,
+  ReplaceIcon,
+  UndoIcon,
+  RedoIcon,
+  CopyIcon,
+  ScissorsIcon,
+  ClipboardIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+  MoonIcon,
+  SunIcon,
+  SettingsIcon,
+  FileIcon,
+  FolderIcon,
+  TrashIcon,
+  PlusIcon,
+  XIcon
+} from "lucide-react"
+
+interface TextDocument {
+  id: string
+  name: string
+  content: string
+  lastModified: Date
+  isModified: boolean
+}
+
+interface TextStyle {
+  fontFamily: string
+  fontSize: number
+  fontWeight: string
+  fontStyle: string
+  textDecoration: string
+  textAlign: string
+}
+
+export function TextEditor() {
+  const [documents, setDocuments] = useState<TextDocument[]>([
+    {
+      id: "1",
+      name: "Document sans titre",
+      content: "Bienvenue dans l'éditeur de texte !\n\nVous pouvez commencer à écrire ici...\n\nFonctionnalités disponibles :\n• Formatage de texte (gras, italique, souligné)\n• Alignement du texte\n• Listes à puces et numérotées\n• Recherche et remplacement\n• Thèmes sombre/clair\n• Zoom in/out\n• Sauvegarde automatique",
+      lastModified: new Date(),
+      isModified: false
+    }
+  ])
+  
+  const [currentDocument, setCurrentDocument] = useState<TextDocument>(documents[0])
+  const [selectedText, setSelectedText] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [replaceQuery, setReplaceQuery] = useState("")
+  const [showSearch, setShowSearch] = useState(false)
+  const [showReplace, setShowReplace] = useState(false)
+  const [theme, setTheme] = useState<"light" | "dark">("light")
+  const [zoom, setZoom] = useState(100)
+  const [fontSize, setFontSize] = useState(14)
+  const [fontFamily, setFontFamily] = useState("Arial")
+  const [showSidebar, setShowSidebar] = useState(true)
+  const [undoStack, setUndoStack] = useState<string[]>([])
+  const [redoStack, setRedoStack] = useState<string[]>([])
+  const [selectionStart, setSelectionStart] = useState(0)
+  const [selectionEnd, setSelectionEnd] = useState(0)
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const fonts = [
+    "Arial", "Helvetica", "Times New Roman", "Georgia", 
+    "Courier New", "Verdana", "Tahoma", "Trebuchet MS"
+  ]
+
+  const fontSizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 32, 36, 40, 48, 56, 64, 72]
+
+  // Gestion des raccourcis clavier
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case "s":
+            e.preventDefault()
+            saveDocument()
+            break
+          case "f":
+            e.preventDefault()
+            setShowSearch(true)
+            break
+          case "h":
+            e.preventDefault()
+            setShowReplace(true)
+            break
+          case "z":
+            e.preventDefault()
+            if (e.shiftKey) {
+              redo()
+            } else {
+              undo()
+            }
+            break
+          case "y":
+            e.preventDefault()
+            redo()
+            break
+          case "b":
+            e.preventDefault()
+            formatText("bold")
+            break
+          case "i":
+            e.preventDefault()
+            formatText("italic")
+            break
+          case "u":
+            e.preventDefault()
+            formatText("underline")
+            break
+        }
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [currentDocument])
+
+  const saveToHistory = (content: string) => {
+    setUndoStack(prev => [...prev, content])
+    setRedoStack([])
+  }
+
+  const undo = () => {
+    if (undoStack.length > 0) {
+      const previousContent = undoStack[undoStack.length - 1]
+      setRedoStack(prev => [...prev, currentDocument.content])
+      setUndoStack(prev => prev.slice(0, -1))
+      updateDocumentContent(previousContent)
+    }
+  }
+
+  const redo = () => {
+    if (redoStack.length > 0) {
+      const nextContent = redoStack[redoStack.length - 1]
+      setUndoStack(prev => [...prev, currentDocument.content])
+      setRedoStack(prev => prev.slice(0, -1))
+      updateDocumentContent(nextContent)
+    }
+  }
+
+  const updateDocumentContent = (content: string) => {
+    const updatedDoc = { ...currentDocument, content, isModified: true, lastModified: new Date() }
+    setCurrentDocument(updatedDoc)
+    setDocuments(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc))
+  }
+
+  const handleContentChange = (content: string) => {
+    saveToHistory(currentDocument.content)
+    updateDocumentContent(content)
+  }
+
+  const handleSelectionChange = () => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      setSelectionStart(start)
+      setSelectionEnd(end)
+      setSelectedText(textarea.value.substring(start, end))
+    }
+  }
+
+  const applyStyleToSelection = (styleFunction: (text: string) => string) => {
+    const textarea = textareaRef.current
+    if (!textarea || selectionStart === selectionEnd) return
+
+    const beforeSelection = textarea.value.substring(0, selectionStart)
+    const selectedText = textarea.value.substring(selectionStart, selectionEnd)
+    const afterSelection = textarea.value.substring(selectionEnd)
+    
+    const styledText = styleFunction(selectedText)
+    const newContent = beforeSelection + styledText + afterSelection
+    
+    updateDocumentContent(newContent)
+    
+    // Restaurer la sélection
+    setTimeout(() => {
+      textarea.setSelectionRange(selectionStart, selectionStart + styledText.length)
+      textarea.focus()
+    }, 0)
+  }
+
+  const formatText = (format: string) => {
+    if (selectionStart === selectionEnd) return
+
+    const styleFunction = (text: string) => {
+      switch (format) {
+        case "bold":
+          return `<strong>${text}</strong>`
+        case "italic":
+          return `<em>${text}</em>`
+        case "underline":
+          return `<u>${text}</u>`
+        case "strikethrough":
+          return `<del>${text}</del>`
+        case "code":
+          return `<code>${text}</code>`
+        case "quote":
+          return `<blockquote>${text}</blockquote>`
+        case "list":
+          return text.split('\n').map(line => `<li>${line}</li>`).join('\n')
+        case "orderedList":
+          return text.split('\n').map((line, index) => `<li>${index + 1}. ${line}</li>`).join('\n')
+        default:
+          return text
+      }
+    }
+
+    applyStyleToSelection(styleFunction)
+  }
+
+  const alignText = (alignment: string) => {
+    if (selectionStart === selectionEnd) return
+
+    const styleFunction = (text: string) => {
+      const alignClass = {
+        left: 'text-left',
+        center: 'text-center',
+        right: 'text-right',
+        justify: 'text-justify'
+      }[alignment] || 'text-left'
+      
+      return `<div class="${alignClass}">${text}</div>`
+    }
+
+    applyStyleToSelection(styleFunction)
+  }
+
+  const applyFontToSelection = (newFontFamily: string) => {
+    if (selectionStart === selectionEnd) return
+
+    const styleFunction = (text: string) => {
+      return `<span style="font-family: ${newFontFamily}">${text}</span>`
+    }
+
+    applyStyleToSelection(styleFunction)
+  }
+
+  const applyFontSizeToSelection = (newFontSize: number) => {
+    if (selectionStart === selectionEnd) return
+
+    const styleFunction = (text: string) => {
+      return `<span style="font-size: ${newFontSize}px">${text}</span>`
+    }
+
+    applyStyleToSelection(styleFunction)
+  }
+
+  const findText = () => {
+    if (!searchQuery) return
+    
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const content = textarea.value
+    const index = content.toLowerCase().indexOf(searchQuery.toLowerCase())
+    
+    if (index !== -1) {
+      textarea.setSelectionRange(index, index + searchQuery.length)
+      textarea.focus()
+      setSelectionStart(index)
+      setSelectionEnd(index + searchQuery.length)
+      setSelectedText(searchQuery)
+    }
+  }
+
+  const replaceText = () => {
+    if (!searchQuery || !replaceQuery) return
+    
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const content = textarea.value
+    const newContent = content.replace(new RegExp(searchQuery, 'gi'), replaceQuery)
+    updateDocumentContent(newContent)
+  }
+
+  const replaceAllText = () => {
+    if (!searchQuery || !replaceQuery) return
+    
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const content = textarea.value
+    const newContent = content.replace(new RegExp(searchQuery, 'gi'), replaceQuery)
+    updateDocumentContent(newContent)
+  }
+
+  const saveDocument = () => {
+    const updatedDoc = { ...currentDocument, isModified: false, lastModified: new Date() }
+    setCurrentDocument(updatedDoc)
+    setDocuments(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc))
+  }
+
+  const downloadDocument = () => {
+    const blob = new Blob([currentDocument.content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${currentDocument.name}.txt`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const createNewDocument = () => {
+    const newDoc: TextDocument = {
+      id: Date.now().toString(),
+      name: "Document sans titre",
+      content: "",
+      lastModified: new Date(),
+      isModified: false
+    }
+    setDocuments(prev => [...prev, newDoc])
+    setCurrentDocument(newDoc)
+  }
+
+  const deleteDocument = (docId: string) => {
+    setDocuments(prev => prev.filter(doc => doc.id !== docId))
+    if (currentDocument.id === docId) {
+      const remainingDocs = documents.filter(doc => doc.id !== docId)
+      if (remainingDocs.length > 0) {
+        setCurrentDocument(remainingDocs[0])
+      }
+    }
+  }
+
+  const copyToClipboard = async () => {
+    if (selectedText) {
+      await navigator.clipboard.writeText(selectedText)
+    }
+  }
+
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      const textarea = textareaRef.current
+      if (textarea) {
+        const start = textarea.selectionStart
+        const content = textarea.value
+        const newContent = content.substring(0, start) + text + content.substring(textarea.selectionEnd)
+        updateDocumentContent(newContent)
+      }
+    } catch (error) {
+      console.error('Erreur lors du collage:', error)
+    }
+  }
+
+  return (
+    <div className={`flex h-full ${theme === 'dark' ? 'dark' : ''}`}>
+      {/* Barre latérale */}
+      {showSidebar && (
+        <div className="w-64 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold">Documents</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={createNewDocument}
+              >
+                <PlusIcon className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors group ${
+                    currentDocument.id === doc.id
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                  onClick={() => setCurrentDocument(doc)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <FileIcon className="w-4 h-4" />
+                      <span className="text-sm font-medium truncate">
+                        {doc.name}
+                        {doc.isModified && <span className="text-red-500 ml-1">*</span>}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteDocument(doc.id)
+                      }}
+                      className="opacity-0 group-hover:opacity-100"
+                    >
+                      <TrashIcon className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {doc.lastModified.toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zone principale */}
+      <div className="flex-1 flex flex-col">
+        {/* Barre d'outils */}
+        <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-2">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSidebar(!showSidebar)}
+              >
+                <FolderIcon className="w-4 h-4" />
+              </Button>
+              
+              <select
+                value={fontFamily}
+                onChange={(e) => {
+                  setFontFamily(e.target.value)
+                  applyFontToSelection(e.target.value)
+                }}
+                className="px-2 py-1 border rounded text-sm"
+              >
+                {fonts.map(font => (
+                  <option key={font} value={font}>{font}</option>
+                ))}
+              </select>
+              
+              <select
+                value={fontSize}
+                onChange={(e) => {
+                  const newSize = Number(e.target.value)
+                  setFontSize(newSize)
+                  applyFontSizeToSelection(newSize)
+                }}
+                className="px-2 py-1 border rounded text-sm w-16"
+              >
+                {fontSizes.map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              >
+                {theme === 'light' ? <MoonIcon className="w-4 h-4" /> : <SunIcon className="w-4 h-4" />}
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setZoom(zoom - 10)}
+                disabled={zoom <= 50}
+              >
+                <ZoomOutIcon className="w-4 h-4" />
+              </Button>
+              <span className="text-sm min-w-[50px] text-center">{zoom}%</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setZoom(zoom + 10)}
+                disabled={zoom >= 200}
+              >
+                <ZoomInIcon className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-1 flex-wrap">
+            {/* Formatage */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => formatText("bold")}
+              title="Gras (Ctrl+B)"
+              disabled={selectionStart === selectionEnd}
+            >
+              <BoldIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => formatText("italic")}
+              title="Italique (Ctrl+I)"
+              disabled={selectionStart === selectionEnd}
+            >
+              <ItalicIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => formatText("underline")}
+              title="Souligné (Ctrl+U)"
+              disabled={selectionStart === selectionEnd}
+            >
+              <UnderlineIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => formatText("strikethrough")}
+              disabled={selectionStart === selectionEnd}
+              title="Barré"
+            >
+              <StrikethroughIcon className="w-4 h-4" />
+            </Button>
+
+            <div className="w-px h-6 bg-gray-300 mx-2" />
+
+            {/* Alignement */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => alignText("left")}
+              disabled={selectionStart === selectionEnd}
+              title="Aligner à gauche"
+            >
+              <AlignLeftIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => alignText("center")}
+              disabled={selectionStart === selectionEnd}
+              title="Centrer"
+            >
+              <AlignCenterIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => alignText("right")}
+              disabled={selectionStart === selectionEnd}
+              title="Aligner à droite"
+            >
+              <AlignRightIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => alignText("justify")}
+              disabled={selectionStart === selectionEnd}
+              title="Justifier"
+            >
+              <AlignJustifyIcon className="w-4 h-4" />
+            </Button>
+
+            <div className="w-px h-6 bg-gray-300 mx-2" />
+
+            {/* Listes */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => formatText("list")}
+              disabled={selectionStart === selectionEnd}
+              title="Liste à puces"
+            >
+              <ListIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => formatText("orderedList")}
+              disabled={selectionStart === selectionEnd}
+              title="Liste numérotée"
+            >
+              <ListOrderedIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => formatText("quote")}
+              disabled={selectionStart === selectionEnd}
+              title="Citation"
+            >
+              <QuoteIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => formatText("code")}
+              disabled={selectionStart === selectionEnd}
+              title="Code"
+            >
+              <CodeIcon className="w-4 h-4" />
+            </Button>
+
+            <div className="w-px h-6 bg-gray-300 mx-2" />
+
+            {/* Édition */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={undo}
+              disabled={undoStack.length === 0}
+              title="Annuler (Ctrl+Z)"
+            >
+              <UndoIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={redo}
+              disabled={redoStack.length === 0}
+              title="Rétablir (Ctrl+Y)"
+            >
+              <RedoIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={copyToClipboard}
+              disabled={!selectedText}
+              title="Copier (Ctrl+C)"
+            >
+              <CopyIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={pasteFromClipboard}
+              title="Coller (Ctrl+V)"
+            >
+              <ClipboardIcon className="w-4 h-4" />
+            </Button>
+
+            <div className="w-px h-6 bg-gray-300 mx-2" />
+
+            {/* Recherche */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSearch(!showSearch)}
+              title="Rechercher (Ctrl+F)"
+            >
+              <SearchIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowReplace(!showReplace)}
+              title="Remplacer (Ctrl+H)"
+            >
+              <ReplaceIcon className="w-4 h-4" />
+            </Button>
+
+            <div className="w-px h-6 bg-gray-300 mx-2" />
+
+            {/* Fichier */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={saveDocument}
+              title="Sauvegarder (Ctrl+S)"
+            >
+              <SaveIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={downloadDocument}
+              title="Télécharger"
+            >
+              <DownloadIcon className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Barre de recherche/remplacement */}
+          {(showSearch || showReplace) && (
+            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded border">
+              <div className="flex items-center space-x-2">
+                <Input
+                  placeholder="Rechercher..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1"
+                  onKeyDown={(e) => e.key === 'Enter' && findText()}
+                />
+                {showReplace && (
+                  <Input
+                    placeholder="Remplacer par..."
+                    value={replaceQuery}
+                    onChange={(e) => setReplaceQuery(e.target.value)}
+                    className="flex-1"
+                  />
+                )}
+                <Button size="sm" onClick={findText}>
+                  Rechercher
+                </Button>
+                {showReplace && (
+                  <>
+                    <Button size="sm" onClick={replaceText}>
+                      Remplacer
+                    </Button>
+                    <Button size="sm" onClick={replaceAllText}>
+                      Tout remplacer
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowSearch(false)
+                    setShowReplace(false)
+                    setSearchQuery("")
+                    setReplaceQuery("")
+                  }}
+                >
+                  <XIcon className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Zone de texte */}
+        <div className="flex-1 p-4 overflow-auto">
+          <Textarea
+            ref={textareaRef}
+            value={currentDocument.content}
+            onChange={(e) => handleContentChange(e.target.value)}
+            onSelect={handleSelectionChange}
+            className="w-full h-full resize-none border-0 focus:ring-0 text-base leading-relaxed"
+            style={{
+              fontFamily,
+              fontSize: `${fontSize}px`,
+              transform: `scale(${zoom / 100})`,
+              transformOrigin: 'top left',
+              minHeight: '100%'
+            }}
+            placeholder="Commencez à écrire..."
+          />
+        </div>
+
+        {/* Barre de statut */}
+        <div className="bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-2">
+          <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center space-x-4">
+              <span>Document: {currentDocument.name}</span>
+              <span>Caractères: {currentDocument.content.length}</span>
+              <span>Mots: {currentDocument.content.split(/\s+/).filter(word => word.length > 0).length}</span>
+              <span>Lignes: {currentDocument.content.split('\n').length}</span>
+              {selectedText && (
+                <span>Sélection: {selectedText.length} caractères</span>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              {currentDocument.isModified && (
+                <span className="text-orange-500">Modifié</span>
+              )}
+              <span>Dernière modification: {currentDocument.lastModified.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+} 
