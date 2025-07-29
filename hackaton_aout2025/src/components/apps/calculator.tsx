@@ -1,7 +1,11 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 
-export function Calculator() {
+interface CalculatorProps {
+  windowId?: string
+}
+
+export function Calculator({ windowId }: CalculatorProps) {
   const [display, setDisplay] = useState("0")
   const [previousValue, setPreviousValue] = useState<number | null>(null)
   const [operation, setOperation] = useState<string | null>(null)

@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
+import { fileService } from "@/services/file-service"
+import type { FileItem } from "@/types/file-types"
 import { 
   GridIcon, 
   ListIcon, 
@@ -17,7 +19,8 @@ import {
   SearchIcon,
   ImageIcon,
   CalendarIcon,
-  FileImageIcon
+  FileImageIcon,
+  FolderIcon
 } from "lucide-react"
 
 interface ImageItem {
@@ -28,90 +31,79 @@ interface ImageItem {
   date: string
   description?: string
   tags: string[]
+  filePath?: string
 }
 
 export function ImageGallery() {
-  const [images, setImages] = useState<ImageItem[]>([
-    {
-      id: "1",
-      name: "Paysage montagneux",
-      url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop",
-      size: 2048576,
-      date: "2024-01-15",
-      description: "Magnifique vue sur les montagnes enneigées",
-      tags: ["paysage", "montagne", "nature"]
-    },
-    {
-      id: "2",
-      name: "Plage tropicale",
-      url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=300&fit=crop",
-      size: 1536000,
-      date: "2024-01-20",
-      description: "Plage de sable blanc et eau turquoise",
-      tags: ["plage", "tropical", "mer"]
-    },
-    {
-      id: "3",
-      name: "Forêt automnale",
-      url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&sat=-50",
-      size: 1843200,
-      date: "2024-02-10",
-      description: "Forêt aux couleurs d'automne",
-      tags: ["forêt", "automne", "nature"]
-    },
-    {
-      id: "4",
-      name: "Ville la nuit",
-      url: "https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=400&h=300&fit=crop",
-      size: 2560000,
-      date: "2024-02-25",
-      description: "Skyline urbain illuminé",
-      tags: ["ville", "nuit", "urbain"]
-    },
-    {
-      id: "5",
-      name: "Fleurs de printemps",
-      url: "https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=400&h=300&fit=crop",
-      size: 1280000,
-      date: "2024-03-05",
-      description: "Champ de fleurs colorées",
-      tags: ["fleurs", "printemps", "couleurs"]
-    },
-    {
-      id: "6",
-      name: "Désert de sable",
-      url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&sat=50",
-      size: 1920000,
-      date: "2024-03-15",
-      description: "Dunes de sable dorées",
-      tags: ["désert", "sable", "chaleur"]
-    },
-    {
-      id: "7",
-      name: "Lac de montagne",
-      url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&hue=180",
-      size: 2240000,
-      date: "2024-04-01",
-      description: "Lac cristallin entouré de montagnes",
-      tags: ["lac", "montagne", "reflet"]
-    },
-    {
-      id: "8",
-      name: "Coucher de soleil",
-      url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&sat=100",
-      size: 1760000,
-      date: "2024-04-10",
-      description: "Soleil couchant sur l'océan",
-      tags: ["coucher", "soleil", "océan"]
-    }
-  ])
-
+  const [images, setImages] = useState<ImageItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [selectedImage, setSelectedImage] = useState<ImageItem | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedImages, setSelectedImages] = useState<string[]>([])
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [showImageViewer, setShowImageViewer] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [rotation, setRotation] = useState(0)
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+
+  // Charger les images depuis l'arborescence au démarrage
+  useEffect(() => {
+    loadImageFiles()
+  }, [])
+
+  const loadImageFiles = async () => {
+    try {
+      setIsLoading(true)
+      const imageFiles = await fileService.findImageFiles()
+      
+      // Convertir les FileItem en ImageItem
+      const imageItems: ImageItem[] = imageFiles.map((file) => {
+        const fileName = file.name.replace(/\.[^/.]+$/, "") // Enlever l'extension
+        const extension = file.name.split('.').pop()?.toLowerCase()
+        
+        // Générer une URL d'image basée sur le nom du fichier
+        const imageUrl = `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000000000)}?w=400&h=300&fit=crop&text=${encodeURIComponent(fileName)}`
+        
+        return {
+          id: file.id,
+          name: fileName,
+          url: imageUrl,
+          size: file.size,
+          date: file.modifiedAt ? new Date(file.modifiedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          description: `Image trouvée dans ${file.path}`,
+          tags: [extension || 'image', 'fichier'],
+          filePath: file.path
+        }
+      })
+      
+      setImages(imageItems)
+      console.log(`Chargé ${imageItems.length} images depuis l'arborescence`)
+    } catch (error) {
+      console.error("Erreur lors du chargement des images:", error)
+      // Fallback vers les images d'exemple si erreur
+      setImages([
+        {
+          id: "1",
+          name: "Paysage montagneux",
+          url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop",
+          size: 2048576,
+          date: "2024-01-15",
+          description: "Magnifique vue sur les montagnes enneigées",
+          tags: ["paysage", "montagne", "nature"]
+        },
+        {
+          id: "2",
+          name: "Plage tropicale",
+          url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=300&fit=crop",
+          size: 1536000,
+          date: "2024-01-20",
+          description: "Plage de sable blanc et eau turquoise",
+          tags: ["plage", "tropical", "mer"]
+        }
+      ])
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const filteredImages = images.filter(image =>
     image.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -136,25 +128,27 @@ export function ImageGallery() {
   }
 
   const openImageViewer = (image: ImageItem) => {
-    setSelectedImage(image)
+    setSelectedImages([image.id]) // Set selected image ID
     setCurrentImageIndex(filteredImages.findIndex(img => img.id === image.id))
     setZoom(1)
     setRotation(0)
+    setShowImageViewer(true)
   }
 
   const closeImageViewer = () => {
-    setSelectedImage(null)
+    setSelectedImages([])
+    setShowImageViewer(false)
   }
 
   const navigateImage = (direction: "prev" | "next") => {
     if (direction === "prev") {
       const newIndex = currentImageIndex === 0 ? filteredImages.length - 1 : currentImageIndex - 1
       setCurrentImageIndex(newIndex)
-      setSelectedImage(filteredImages[newIndex])
+      setSelectedImages([filteredImages[newIndex].id])
     } else {
       const newIndex = currentImageIndex === filteredImages.length - 1 ? 0 : currentImageIndex + 1
       setCurrentImageIndex(newIndex)
-      setSelectedImage(filteredImages[newIndex])
+      setSelectedImages([filteredImages[newIndex].id])
     }
     setZoom(1)
     setRotation(0)
@@ -170,7 +164,7 @@ export function ImageGallery() {
 
   const deleteImage = (imageId: string) => {
     setImages(prev => prev.filter(img => img.id !== imageId))
-    if (selectedImage?.id === imageId) {
+    if (selectedImages.includes(imageId)) {
       closeImageViewer()
     }
   }
@@ -184,7 +178,7 @@ export function ImageGallery() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!selectedImage) return
+      if (!selectedImages.length) return
 
       switch (e.key) {
         case "Escape":
@@ -211,7 +205,7 @@ export function ImageGallery() {
 
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [selectedImage, zoom, currentImageIndex])
+  }, [selectedImages, zoom, currentImageIndex])
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
@@ -250,11 +244,42 @@ export function ImageGallery() {
             className="pl-10"
           />
         </div>
+
+        {/* Indicateur de chargement et statistiques */}
+        {isLoading && (
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <span>Recherche d'images dans l'arborescence...</span>
+            </div>
+          </div>
+        )}
+
+        {!isLoading && (
+          <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+              <FolderIcon className="w-4 h-4" />
+              <span>{images.length} images trouvées dans l'arborescence</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Contenu principal */}
       <div className="flex-1 p-4 overflow-auto">
-        {viewMode === "grid" ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <FolderIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-600 mb-2">Chargement des images...</h3>
+            <p className="text-gray-500">Veuillez patienter pendant le chargement des fichiers d'images.</p>
+          </div>
+        ) : filteredImages.length === 0 ? (
+          <div className="text-center py-12">
+            <FileImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-600 mb-2">Aucune image trouvée</h3>
+            <p className="text-gray-500">Essayez de modifier votre recherche ou d'ajouter des fichiers d'images à votre arborescence.</p>
+          </div>
+        ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {filteredImages.map((image) => (
               <Card
@@ -296,83 +321,18 @@ export function ImageGallery() {
               </Card>
             ))}
           </div>
-        ) : (
-          <div className="space-y-2">
-            {filteredImages.map((image) => (
-              <Card
-                key={image.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => openImageViewer(image)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0">
-                      <img
-                        src={image.url}
-                        alt={image.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium">{image.name}</h3>
-                      <p className="text-sm text-gray-500">{image.description}</p>
-                      <div className="flex items-center gap-4 text-xs text-gray-400 mt-1">
-                        <span>{formatFileSize(image.size)}</span>
-                        <span className="flex items-center gap-1">
-                          <CalendarIcon className="w-3 h-3" />
-                          {formatDate(image.date)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          downloadImage(image)
-                        }}
-                        title="Télécharger l'image"
-                      >
-                        <DownloadIcon className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          deleteImage(image.id)
-                        }}
-                        title="Supprimer l'image"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {filteredImages.length === 0 && (
-          <div className="text-center py-12">
-            <FileImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">Aucune image trouvée</h3>
-            <p className="text-gray-500">Essayez de modifier votre recherche</p>
-          </div>
         )}
       </div>
 
       {/* Visualiseur d'image plein écran */}
-      {selectedImage && (
+      {showImageViewer && selectedImages.length > 0 && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
           <div className="relative w-full h-full flex items-center justify-center">
             {/* Image */}
             <div className="relative max-w-full max-h-full overflow-auto">
               <img
-                src={selectedImage.url}
-                alt={selectedImage.name}
+                src={filteredImages.find(img => img.id === selectedImages[0])?.url}
+                alt={filteredImages.find(img => img.id === selectedImages[0])?.name}
                 className="max-w-none"
                 style={{
                   transform: `scale(${zoom}) rotate(${rotation}deg)`,
@@ -393,7 +353,7 @@ export function ImageGallery() {
                 >
                   <XIcon className="w-4 h-4" />
                 </Button>
-                <span className="text-white font-medium">{selectedImage.name}</span>
+                <span className="text-white font-medium">{filteredImages.find(img => img.id === selectedImages[0])?.name}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Button
@@ -426,7 +386,7 @@ export function ImageGallery() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => downloadImage(selectedImage)}
+                  onClick={() => downloadImage(filteredImages.find(img => img.id === selectedImages[0])!)}
                   className="bg-white/20 text-white hover:bg-white/30"
                   title="Télécharger"
                 >
@@ -435,7 +395,7 @@ export function ImageGallery() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => deleteImage(selectedImage.id)}
+                  onClick={() => deleteImage(filteredImages.find(img => img.id === selectedImages[0])!.id)}
                   className="bg-white/20 text-white hover:bg-white/30"
                   title="Supprimer"
                 >
@@ -468,11 +428,11 @@ export function ImageGallery() {
             <div className="absolute bottom-4 left-4 right-4 bg-black/50 text-white p-4 rounded">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-medium">{selectedImage.name}</h3>
-                  <p className="text-sm text-gray-300">{selectedImage.description}</p>
+                  <h3 className="font-medium">{filteredImages.find(img => img.id === selectedImages[0])?.name}</h3>
+                  <p className="text-sm text-gray-300">{filteredImages.find(img => img.id === selectedImages[0])?.description}</p>
                   <div className="flex items-center gap-4 text-xs text-gray-400 mt-1">
-                    <span>{formatFileSize(selectedImage.size)}</span>
-                    <span>{formatDate(selectedImage.date)}</span>
+                    <span>{formatFileSize(filteredImages.find(img => img.id === selectedImages[0])?.size || 0)}</span>
+                    <span>{formatDate(filteredImages.find(img => img.id === selectedImages[0])?.date || '')}</span>
                   </div>
                 </div>
                 <div className="text-sm text-gray-300">
@@ -480,7 +440,7 @@ export function ImageGallery() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-1 mt-2">
-                {selectedImage.tags.map((tag) => (
+                {filteredImages.find(img => img.id === selectedImages[0])?.tags.map((tag) => (
                   <span
                     key={tag}
                     className="px-2 py-1 bg-white/20 rounded text-xs"

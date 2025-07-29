@@ -100,16 +100,7 @@ export function Desktop() {
   useEffect(() => {
     // Simuler quelques fichiers sur le bureau
     setDesktopFiles([
-      {
-        id: "desktop-file-1",
-        name: "readme.txt",
-        type: "file",
-        path: "/readme.txt",
-        size: 1024,
-        createdAt: new Date().toISOString(),
-        modifiedAt: new Date().toISOString(),
-        mimeType: "text/plain",
-      },
+
       {
         id: "desktop-file-2",
         name: "Documents",
@@ -138,8 +129,8 @@ export function Desktop() {
         "file-explorer": { width: 800, height: 600 },
         "image-gallery": { width: 800, height: 600 },
         terminal: { width: 700, height: 500 },
-        calendar: { width: 600, height: 500 },
-        clock: { width: 400, height: 300 },
+        calendar: { width: 800, height: 650 },
+        clock: { width: 600, height: 550 },
         paint: { width: 800, height: 600 },
         "music-player": { width: 500, height: 400 },
         settings: { width: 700, height: 500 },
@@ -151,6 +142,9 @@ export function Desktop() {
         type: app.type as any,
         position: { x: 100 + Math.random() * 100, y: 100 + Math.random() * 100 },
         size: appSizes[app.type as keyof typeof appSizes] || { width: 600, height: 400 },
+        isMinimized: false,
+        isMaximized: false,
+        zIndex: 1000,
         initialPath: app.type === "file-explorer" ? "/" : undefined,
       })
     } else {
@@ -164,6 +158,9 @@ export function Desktop() {
           initialPath: file.path,
           position: { x: 100, y: 100 },
           size: { width: 800, height: 600 },
+          isMinimized: false,
+          isMaximized: false,
+          zIndex: 1000,
         })
       } else {
         openWindow({
@@ -173,6 +170,9 @@ export function Desktop() {
           filePath: file.path,
           position: { x: 150, y: 150 },
           size: { width: 600, height: 400 },
+          isMinimized: false,
+          isMaximized: false,
+          zIndex: 1000,
         })
       }
     }
@@ -181,6 +181,12 @@ export function Desktop() {
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     setContextMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  const handleIconPositionChange = (id: string, newPosition: { x: number; y: number }) => {
+    // Mettre à jour la position dans le store
+    const { updateIconPosition } = useDesktopStore.getState()
+    updateIconPosition(id, newPosition)
   }
 
   const getWallpaperStyle = () => {
@@ -225,6 +231,7 @@ export function Desktop() {
             item={item}
             position={position}
             onDoubleClick={() => handleDoubleClick(item)}
+            onPositionChange={handleIconPositionChange}
             tooltip={"description" in item ? item.description : undefined}
           />
         )

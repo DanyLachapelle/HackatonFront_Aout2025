@@ -37,6 +37,7 @@ import {
   FilePlusIcon
 } from "lucide-react"
 import JSZip from "jszip"
+import { useWindowStore } from "@/stores/window-store"
 
 interface FileItem {
   id: string
@@ -120,18 +121,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
         isSelected: false,
         isFavorite: false
       },
-      {
-        id: "4",
-        name: "readme.txt",
-        type: "file",
-        size: 2048,
-        createdAt: new Date("2024-01-10"),
-        modifiedAt: new Date("2024-01-10"),
-        path: "/readme.txt",
-        extension: "txt",
-        isSelected: false,
-        isFavorite: false
-      },
+
       {
         id: "5",
         name: "config.json",
@@ -446,27 +436,45 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     if (file.type === "folder") {
       navigateTo(file.path)
     } else {
-      // Ouvrir le fichier avec le visionneur
       const extension = file.extension?.toLowerCase()
       
       // Déterminer le type de fichier
-      let fileType: 'text' | 'image' | 'folder' = 'text'
-      if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension || '')) {
-        fileType = 'image'
-      }
+      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension || '')
+      const isTextFile = !isImage && extension !== 'mp3' && extension !== 'wav' && extension !== 'flac'
       
-      // Préparer les données du fichier pour le visionneur
-      const viewerFileData = {
-        name: file.name,
-        type: fileType,
-        size: file.size,
-        lastModified: file.modifiedAt,
-        content: fileType === 'text' ? getFileContent(file.name, extension) : undefined,
-        url: fileType === 'image' ? getImageUrl(file.name) : undefined
+      if (isTextFile) {
+        // Ouvrir les fichiers texte dans l'éditeur
+        const { openWindow } = useWindowStore.getState()
+        openWindow({
+          id: `editor-${file.id}`,
+          title: `${file.name} - Éditeur de texte`,
+          type: "text-editor",
+          filePath: file.path,
+          position: { x: 150, y: 150 },
+          size: { width: 800, height: 600 },
+          isMinimized: false,
+          isMaximized: false,
+          zIndex: 1000,
+        })
+      } else if (isImage) {
+        // Ouvrir les images dans le visionneur
+        const fileType: 'text' | 'image' | 'folder' = 'image'
+        
+        const viewerFileData = {
+          name: file.name,
+          type: fileType,
+          size: file.size,
+          lastModified: file.modifiedAt,
+          content: undefined,
+          url: getImageUrl(file.name)
+        }
+        
+        setViewerFile(viewerFileData)
+        setShowFileViewer(true)
+      } else {
+        // Pour les autres types de fichiers, afficher un message
+        alert(`Ce type de fichier (.${extension}) n'est pas encore supporté pour l'édition.`)
       }
-      
-      setViewerFile(viewerFileData)
-      setShowFileViewer(true)
     }
   }
 
@@ -557,7 +565,7 @@ ${selectedItems.map(item => `- ${item.name} (${item.type === 'file' ? 'fichier' 
 ## Note:
 Cette archive a été créée depuis l'explorateur de fichiers de l'application AEMT.
 `
-    zip.file('README.txt', readmeContent)
+
 
     zip.generateAsync({ type: "blob" })
       .then(content => {

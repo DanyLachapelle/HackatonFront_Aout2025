@@ -1,20 +1,10 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Slider } from "@/components/ui/slider"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { 
-  PencilIcon, 
-  SquareIcon, 
-  CircleIcon, 
-  TypeIcon, 
-  EraserIcon,
-  PaletteIcon,
-  DownloadIcon,
-  TrashIcon,
-  UndoIcon,
-  RedoIcon,
-  SaveIcon,
-  ImageIcon
+  Pencil, Eraser, Square, Circle, Type, Undo, Redo, 
+  Download, Trash2, Palette, Minus, Plus
 } from "lucide-react"
 
 type Tool = "pencil" | "eraser" | "rectangle" | "circle" | "text"
@@ -37,7 +27,11 @@ interface DrawingAction {
   textPosition?: Point
 }
 
-export function Paint() {
+interface PaintProps {
+  windowId?: string
+}
+
+export function Paint({ windowId }: PaintProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [currentTool, setCurrentTool] = useState<Tool>("pencil")
@@ -56,12 +50,57 @@ export function Paint() {
   ]
 
   const tools = [
-    { id: "pencil", icon: PencilIcon, label: "Crayon", description: "Dessine avec un crayon" },
-    { id: "eraser", icon: EraserIcon, label: "Gomme", description: "Efface le dessin" },
-    { id: "rectangle", icon: SquareIcon, label: "Rectangle", description: "Dessine un rectangle" },
-    { id: "circle", icon: CircleIcon, label: "Cercle", description: "Dessine un cercle" },
-    { id: "text", icon: TypeIcon, label: "Texte", description: "Ajoute du texte" }
+    { id: "pencil", icon: Pencil, label: "Crayon", description: "Dessine avec un crayon" },
+    { id: "eraser", icon: Eraser, label: "Gomme", description: "Efface le dessin" },
+    { id: "rectangle", icon: Square, label: "Rectangle", description: "Dessine un rectangle" },
+    { id: "circle", icon: Circle, label: "Cercle", description: "Dessine un cercle" },
+    { id: "text", icon: Type, label: "Texte", description: "Ajoute du texte" }
   ]
+
+  // Sauvegarder l'état quand il change
+  useEffect(() => {
+    if (windowId) {
+      const canvas = canvasRef.current
+      if (canvas) {
+        const canvasData = canvas.toDataURL()
+        // updatePaintState(windowId, {
+        //   canvasData,
+        //   brushSize,
+        //   brushColor: currentColor,
+        //   currentTool
+        // })
+      }
+    }
+  }, [currentTool, currentColor, brushSize, windowId])
+
+  // Sauvegarder les actions séparément
+  useEffect(() => {
+    if (windowId) {
+      // updatePaintState(windowId, {
+      //   actions: actions.map(action => ({
+      //     type: action.type,
+      //     tool: action.tool,
+      //     color: action.color,
+      //     size: action.size,
+      //     points: action.points,
+      //     startPoint: action.startPoint,
+      //     endPoint: action.endPoint,
+      //     text: action.text,
+      //     textPosition: action.textPosition
+      //   })),
+      //   undoStack: undoStack.map(action => ({
+      //     type: action.type,
+      //     tool: action.tool,
+      //     color: action.color,
+      //     size: action.size,
+      //     points: action.points,
+      //     startPoint: action.startPoint,
+      //     endPoint: action.endPoint,
+      //     text: action.text,
+      //     textPosition: action.textPosition
+      //   }))
+    }
+  }, [actions, undoStack, windowId])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -78,8 +117,17 @@ export function Paint() {
     ctx.fillStyle = "#ffffff"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Redessiner toutes les actions
-    redrawCanvas()
+    // Restaurer le canvas sauvegardé s'il existe
+    // if (savedState?.canvasData) {
+    //   const img = new Image()
+    //   img.onload = () => {
+    //     ctx.drawImage(img, 0, 0)
+    //   }
+    //   img.src = savedState.canvasData
+    // } else {
+      // Redessiner toutes les actions
+      redrawCanvas()
+    // }
   }, [])
 
   const redrawCanvas = () => {
@@ -298,7 +346,7 @@ export function Paint() {
             disabled={actions.length === 0}
             title="Annuler (Ctrl+Z)"
           >
-            <UndoIcon className="w-4 h-4" />
+            <Undo className="w-4 h-4" />
           </Button>
           <Button 
             variant="outline" 
@@ -307,7 +355,7 @@ export function Paint() {
             disabled={undoStack.length === 0}
             title="Rétablir (Ctrl+Y)"
           >
-            <RedoIcon className="w-4 h-4" />
+            <Redo className="w-4 h-4" />
           </Button>
           <Button 
             variant="outline" 
@@ -315,7 +363,7 @@ export function Paint() {
             onClick={clearCanvas}
             title="Effacer tout le canvas"
           >
-            <TrashIcon className="w-4 h-4" />
+            <Trash2 className="w-4 h-4" />
           </Button>
           <Button 
             variant="outline" 
@@ -323,7 +371,7 @@ export function Paint() {
             onClick={downloadImage}
             title="Télécharger l'image (PNG)"
           >
-            <DownloadIcon className="w-4 h-4" />
+            <Download className="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -334,7 +382,7 @@ export function Paint() {
           {/* Couleurs */}
           <div className="mb-6">
             <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-              <PaletteIcon className="w-4 h-4" />
+              <Palette className="w-4 h-4" />
               Couleurs
             </h3>
             <div className="grid grid-cols-5 gap-2">
@@ -364,16 +412,14 @@ export function Paint() {
           {/* Taille du pinceau */}
           <div className="mb-6">
             <h3 className="text-sm font-medium mb-3">Taille du pinceau</h3>
-            <Slider
-              value={[brushSize]}
-              onValueChange={([value]) => setBrushSize(value)}
-              max={20}
-              min={1}
-              step={1}
-              className="w-full"
-            />
-            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {brushSize}px
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setBrushSize(prev => Math.max(1, prev - 1))} disabled={brushSize <= 1}>
+                <Minus className="w-4 h-4" />
+              </Button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">{brushSize}px</span>
+              <Button variant="outline" size="sm" onClick={() => setBrushSize(prev => Math.min(20, prev + 1))} disabled={brushSize >= 20}>
+                <Plus className="w-4 h-4" />
+              </Button>
             </div>
           </div>
 
@@ -395,36 +441,31 @@ export function Paint() {
 
         {/* Zone de dessin */}
         <div className="flex-1 p-4">
-          <Card className="h-full">
-            <CardContent className="p-0 h-full">
-              <canvas
-                ref={canvasRef}
-                className="w-full h-full cursor-crosshair border rounded"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={() => setIsDrawing(false)}
-              />
-            </CardContent>
-          </Card>
+          <canvas
+            ref={canvasRef}
+            className="w-full h-full cursor-crosshair border rounded"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={() => setIsDrawing(false)}
+          />
         </div>
       </div>
 
       {/* Modal de saisie de texte */}
       {showTextInput && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-96">
-            <CardHeader>
-              <CardTitle>Ajouter du texte</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <input
+          <div className="w-96 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+            <h3 className="text-lg font-semibold mb-4">Ajouter du texte</h3>
+            <div className="mb-4">
+              <Label htmlFor="text-input" className="block text-sm font-medium mb-1">
+                Texte
+              </Label>
+              <Input
+                id="text-input"
                 type="text"
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Entrez votre texte..."
-                className="w-full p-2 border rounded"
-                autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     handleTextSubmit()
@@ -435,20 +476,20 @@ export function Paint() {
                   }
                 }}
               />
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => {
-                  setShowTextInput(false)
-                  setTextInput("")
-                  setTextPosition(null)
-                }}>
-                  Annuler
-                </Button>
-                <Button onClick={handleTextSubmit}>
-                  Ajouter
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => {
+                setShowTextInput(false)
+                setTextInput("")
+                setTextPosition(null)
+              }}>
+                Annuler
+              </Button>
+              <Button onClick={handleTextSubmit}>
+                Ajouter
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

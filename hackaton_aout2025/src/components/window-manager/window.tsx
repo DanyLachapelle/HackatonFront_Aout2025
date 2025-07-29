@@ -17,6 +17,140 @@ import { ImageGallery } from "@/components/apps/image-gallery"
 import { TextEditor } from "@/components/apps/text-editor"
 import { FileExplorer } from "@/components/apps/file-explorer"
 import { Terminal } from "@/components/apps/terminal"
+import { FileViewer } from "@/components/file-viewer/file-viewer"
+
+// Composant pour afficher les fichiers
+function FileViewerWindow({ filePath, windowId }: { filePath?: string; windowId: string }) {
+  const [file, setFile] = useState<{
+    name: string
+    type: 'text' | 'image' | 'folder'
+    content?: string
+    url?: string
+    size?: number
+    lastModified?: Date
+  } | null>(null)
+  const { closeWindow } = useWindowStore()
+
+  useEffect(() => {
+    if (filePath) {
+      // Simuler le chargement du fichier
+      const fileName = filePath.split('/').pop() || 'fichier'
+      const extension = fileName.split('.').pop()?.toLowerCase()
+      
+      let fileType: 'text' | 'image' | 'folder' = 'text'
+      let content = ''
+      let url = ''
+      
+      if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif') {
+        fileType = 'image'
+        url = `https://picsum.photos/800/600?random=${Math.floor(Math.random() * 1000)}`
+      } else if (extension === 'txt' || extension === 'md' || extension === 'json' || extension === 'js' || extension === 'ts' || extension === 'html' || extension === 'css') {
+        fileType = 'text'
+        content = `Contenu du fichier ${fileName}\n\nCeci est un exemple de contenu pour le fichier ${fileName}.\nVous pouvez modifier ce texte et l'enregistrer.\n\nLigne 1: Exemple de contenu\nLigne 2: Autre exemple\nLigne 3: Encore un exemple`
+      }
+      
+      setFile({
+        name: fileName,
+        type: fileType,
+        content,
+        url,
+        size: Math.floor(Math.random() * 1000000) + 1000,
+        lastModified: new Date()
+      })
+    }
+  }, [filePath])
+
+  if (!file) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="text-6xl mb-4">📄</div>
+          <p className="text-gray-600">Chargement du fichier...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Version adaptée du FileViewer pour les fenêtres
+  return (
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+      {/* En-tête simplifié */}
+      <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center space-x-3">
+          <span className="text-lg">
+            {file.type === 'text' ? '📄' : file.type === 'image' ? '🖼️' : '📁'}
+          </span>
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-white">{file.name}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {file.type === 'text' ? 'Fichier texte' : file.type === 'image' ? 'Image' : 'Dossier'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          {file.size && (
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {(file.size / 1024).toFixed(1)} KB
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => closeWindow(windowId)}
+            className="p-2"
+          >
+            <XIcon className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Contenu */}
+      <div className="flex-1 overflow-auto p-4">
+        {file.type === 'text' && (
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 h-full">
+            <pre className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap font-mono">
+              {file.content}
+            </pre>
+          </div>
+        )}
+        {file.type === 'image' && (
+          <div className="flex items-center justify-center h-full">
+            <img 
+              src={file.url} 
+              alt={file.name}
+              className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+            />
+          </div>
+        )}
+        {file.type === 'folder' && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="text-6xl mb-4">📁</div>
+              <p className="text-gray-600 dark:text-gray-400">
+                Ceci est un dossier
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-500">
+                Utilisez l'explorateur de fichiers pour naviguer
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Barre de statut */}
+      <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+          <span>Type: {file.type}</span>
+          {file.lastModified && (
+            <span>
+              Modifié: {file.lastModified.toLocaleDateString()}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Composants d'applications temporaires
 function TemporaryApp({ type }: { type: string }) {
@@ -99,13 +233,35 @@ export function Window({ window }: WindowProps) {
   }
 
   const handleDoubleClick = () => {
-    maximizeWindow(window.id)
+    // Empêcher la maximisation pour la calculatrice
+    if (window.type !== "calculator") {
+      maximizeWindow(window.id)
+    }
+  }
+
+  // Gestion du clic sur la fenêtre pour la mettre en arrière-plan
+  const handleWindowClick = (e: React.MouseEvent) => {
+    // Si on clique sur la fenêtre elle-même (pas sur les boutons), la mettre en arrière-plan
+    if (e.target === windowRef.current || windowRef.current?.contains(e.target as Node)) {
+      // Vérifier si on n'a pas cliqué sur un bouton
+      const target = e.target as HTMLElement
+      if (target.closest('button')) {
+        return // Ne rien faire si on a cliqué sur un bouton
+      }
+      
+      // Trouver une autre fenêtre active ou ne rien faire
+      const { windows } = useWindowStore.getState()
+      const otherWindows = windows.filter(w => w.id !== window.id && !w.isMinimized)
+      if (otherWindows.length > 0) {
+        focusWindow(otherWindows[0].id)
+      }
+    }
   }
 
   const renderContent = () => {
     switch (window.type) {
       case "calculator":
-        return <Calculator />
+        return <Calculator windowId={window.id} />
       case "clock":
         return <Clock />
       case "calendar":
@@ -113,23 +269,29 @@ export function Window({ window }: WindowProps) {
       case "settings":
         return <Settings />
       case "paint":
-        return <Paint />
+        return <Paint windowId={window.id} />
       case "music-player":
-        return <MusicPlayer />
+        return <MusicPlayer windowId={window.id} />
       case "image-gallery":
         return <ImageGallery />
       case "text-editor":
-        return <TextEditor />
+        return <TextEditor windowId={window.id} filePath={window.filePath} />
       case "file-explorer":
         return <FileExplorer initialPath={window.initialPath} />
+      case "file-viewer":
+        return <FileViewerWindow filePath={window.filePath} windowId={window.id} />
       case "terminal":
-        return <Terminal initialPath={window.initialPath} />
+        return <Terminal initialPath={window.initialPath} windowId={window.id} />
       default:
         return <TemporaryApp type={window.type} />
     }
   }
 
-  const windowStyle = window.isMaximized
+  // Empêcher la maximisation pour la calculatrice
+  const isCalculator = window.type === "calculator"
+  const effectiveIsMaximized = isCalculator ? false : window.isMaximized
+
+  const windowStyle = effectiveIsMaximized
     ? {
         position: "fixed" as const,
         top: 0,
@@ -148,7 +310,69 @@ export function Window({ window }: WindowProps) {
       }
 
   if (window.isMinimized) {
-    return null
+    return (
+      <Card
+        ref={windowRef}
+        className={cn(
+          "flex flex-col overflow-hidden shadow-lg border",
+          isActive ? "ring-2 ring-blue-500" : "",
+          isDragging ? "cursor-grabbing" : "",
+          isCalculator ? "resize-none" : ""
+        )}
+        style={{
+          ...windowStyle,
+          display: "none" // Masquer complètement la fenêtre minimisée
+        }}
+        onMouseDown={handleMouseDown}
+        onClick={handleWindowClick}
+      >
+        {/* Barre de titre */}
+        <div
+          ref={headerRef}
+          className={cn(
+            "flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 border-b select-none",
+            "cursor-grab",
+            isDragging ? "cursor-grabbing" : ""
+          )}
+          onDoubleClick={handleDoubleClick}
+        >
+          <span className="font-medium text-sm truncate">{window.title}</span>
+          <div className="flex space-x-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+              onClick={() => minimizeWindow(window.id)}
+            >
+              <MinusIcon className="w-3 h-3" />
+            </Button>
+            {!isCalculator && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+                onClick={() => maximizeWindow(window.id)}
+              >
+                <SquareIcon className="w-3 h-3" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-red-500 hover:text-white"
+              onClick={() => closeWindow(window.id)}
+            >
+              <XIcon className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Contenu */}
+        <div className="flex-1 overflow-hidden">
+          {renderContent()}
+        </div>
+      </Card>
+    )
   }
 
   return (
@@ -157,16 +381,20 @@ export function Window({ window }: WindowProps) {
       className={cn(
         "flex flex-col overflow-hidden shadow-lg border",
         isActive ? "ring-2 ring-blue-500" : "",
-        isDragging ? "cursor-grabbing" : ""
+        isDragging ? "cursor-grabbing" : "",
+        // Empêcher le redimensionnement pour la calculatrice
+        isCalculator ? "resize-none" : ""
       )}
       style={windowStyle}
       onMouseDown={handleMouseDown}
+      onClick={handleWindowClick}
     >
       {/* Barre de titre */}
       <div
         ref={headerRef}
         className={cn(
-          "flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 border-b cursor-grab select-none",
+          "flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 border-b select-none",
+          "cursor-grab",
           isDragging ? "cursor-grabbing" : ""
         )}
         onDoubleClick={handleDoubleClick}
@@ -181,14 +409,17 @@ export function Window({ window }: WindowProps) {
           >
             <MinusIcon className="w-3 h-3" />
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
-            onClick={() => maximizeWindow(window.id)}
-          >
-            <SquareIcon className="w-3 h-3" />
-          </Button>
+          {/* Masquer le bouton de maximisation pour la calculatrice */}
+          {!isCalculator && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+              onClick={() => maximizeWindow(window.id)}
+            >
+              <SquareIcon className="w-3 h-3" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"

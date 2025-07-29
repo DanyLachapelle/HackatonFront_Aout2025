@@ -173,17 +173,9 @@ export function Clock() {
               </div>
 
               {/* Informations supplémentaires */}
-              <div className="grid grid-cols-2 gap-4 w-full max-w-md">
-                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Fuseau horaire</div>
-                  <div className="text-lg font-semibold">Europe/Paris</div>
-                </div>
-                <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Semaine</div>
-                  <div className="text-lg font-semibold">
-                    {Math.ceil((currentTime.getDate() + new Date(currentTime.getFullYear(), 0, 1).getDay()) / 7)}
-                  </div>
-                </div>
+              <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg shadow w-full max-w-md">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Fuseau horaire</div>
+                <div className="text-lg font-semibold">Europe/Paris</div>
               </div>
             </CardContent>
           </Card>

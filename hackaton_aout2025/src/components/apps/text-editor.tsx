@@ -1,44 +1,14 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { fileService } from "@/services/file-service"
 import { 
-  BoldIcon, 
-  ItalicIcon, 
-  UnderlineIcon,
-  StrikethroughIcon,
-  AlignLeftIcon,
-  AlignCenterIcon,
-  AlignRightIcon,
-  AlignJustifyIcon,
-  ListIcon,
-  ListOrderedIcon,
-  QuoteIcon,
-  CodeIcon,
-  LinkIcon,
-  ImageIcon,
-  FileTextIcon,
-  SaveIcon,
-  DownloadIcon,
-  UploadIcon,
-  SearchIcon,
-  ReplaceIcon,
-  UndoIcon,
-  RedoIcon,
-  CopyIcon,
-  ScissorsIcon,
-  ClipboardIcon,
-  ZoomInIcon,
-  ZoomOutIcon,
-  MoonIcon,
-  SunIcon,
-  SettingsIcon,
-  FileIcon,
-  FolderIcon,
-  TrashIcon,
-  PlusIcon,
-  XIcon
+  Bold, Italic, Underline, Strikethrough, Code, Quote, 
+  List, ListOrdered, AlignLeft, AlignCenter, AlignRight, AlignJustify,
+  Search, Replace, Save, Download, Plus, Trash2, Copy, Clipboard,
+  Undo, Redo, ZoomIn, ZoomOut, Sun, Moon, Settings, FileText, Folder, X
 } from "lucide-react"
 
 interface TextDocument {
@@ -47,6 +17,7 @@ interface TextDocument {
   content: string
   lastModified: Date
   isModified: boolean
+  filePath?: string
 }
 
 interface TextStyle {
@@ -58,7 +29,12 @@ interface TextStyle {
   textAlign: string
 }
 
-export function TextEditor() {
+interface TextEditorProps {
+  windowId?: string
+  filePath?: string
+}
+
+export function TextEditor({ windowId, filePath }: TextEditorProps) {
   const [documents, setDocuments] = useState<TextDocument[]>([
     {
       id: "1",
@@ -86,6 +62,49 @@ export function TextEditor() {
   const [selectionEnd, setSelectionEnd] = useState(0)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Charger le fichier si filePath est fourni
+  useEffect(() => {
+    if (filePath) {
+      loadFileFromPath(filePath)
+    }
+  }, [filePath])
+
+  const loadFileFromPath = async (path: string) => {
+    try {
+      const content = await fileService.getFileContent(path)
+      const fileName = path.split('/').pop() || 'Fichier inconnu'
+      
+      const newDocument: TextDocument = {
+        id: `file-${Date.now()}`,
+        name: fileName,
+        content: content,
+        lastModified: new Date(),
+        isModified: false,
+        filePath: path
+      }
+      
+      setDocuments([newDocument])
+      setCurrentDocument(newDocument)
+      setUndoStack([])
+      setRedoStack([])
+    } catch (error) {
+      console.error('Erreur lors du chargement du fichier:', error)
+      // Créer un document vide avec le nom du fichier
+      const fileName = path.split('/').pop() || 'Fichier inconnu'
+      const newDocument: TextDocument = {
+        id: `file-${Date.now()}`,
+        name: fileName,
+        content: `# ${fileName}\n\nFichier créé automatiquement.\n\nContenu original non disponible.`,
+        lastModified: new Date(),
+        isModified: false,
+        filePath: path
+      }
+      
+      setDocuments([newDocument])
+      setCurrentDocument(newDocument)
+    }
+  }
 
   const fonts = [
     "Arial", "Helvetica", "Times New Roman", "Georgia", 
@@ -314,10 +333,21 @@ export function TextEditor() {
     updateDocumentContent(newContent)
   }
 
-  const saveDocument = () => {
-    const updatedDoc = { ...currentDocument, isModified: false, lastModified: new Date() }
-    setCurrentDocument(updatedDoc)
-    setDocuments(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc))
+  const saveDocument = async () => {
+    try {
+      // Si le document a un filePath, sauvegarder dans le fichier original
+      if (currentDocument.filePath) {
+        await fileService.updateFileContent(currentDocument.filePath, currentDocument.content)
+        console.log(`Fichier sauvegardé: ${currentDocument.filePath}`)
+      }
+      
+      const updatedDoc = { ...currentDocument, isModified: false, lastModified: new Date() }
+      setCurrentDocument(updatedDoc)
+      setDocuments(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc))
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error)
+      alert('Erreur lors de la sauvegarde du fichier')
+    }
   }
 
   const downloadDocument = () => {
@@ -386,7 +416,7 @@ export function TextEditor() {
                 size="sm"
                 onClick={createNewDocument}
               >
-                <PlusIcon className="w-4 h-4" />
+                <Plus className="w-4 h-4" />
               </Button>
             </div>
             
@@ -403,7 +433,7 @@ export function TextEditor() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <FileIcon className="w-4 h-4" />
+                      <FileText className="w-4 h-4" />
                       <span className="text-sm font-medium truncate">
                         {doc.name}
                         {doc.isModified && <span className="text-red-500 ml-1">*</span>}
@@ -418,7 +448,7 @@ export function TextEditor() {
                       }}
                       className="opacity-0 group-hover:opacity-100"
                     >
-                      <TrashIcon className="w-3 h-3" />
+                      <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
@@ -442,7 +472,7 @@ export function TextEditor() {
                 size="sm"
                 onClick={() => setShowSidebar(!showSidebar)}
               >
-                <FolderIcon className="w-4 h-4" />
+                <Folder className="w-4 h-4" />
               </Button>
               
               <select
@@ -479,7 +509,7 @@ export function TextEditor() {
                 size="sm"
                 onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
               >
-                {theme === 'light' ? <MoonIcon className="w-4 h-4" /> : <SunIcon className="w-4 h-4" />}
+                {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
               </Button>
               
               <Button
@@ -488,7 +518,7 @@ export function TextEditor() {
                 onClick={() => setZoom(zoom - 10)}
                 disabled={zoom <= 50}
               >
-                <ZoomOutIcon className="w-4 h-4" />
+                <ZoomOut className="w-4 h-4" />
               </Button>
               <span className="text-sm min-w-[50px] text-center">{zoom}%</span>
               <Button
@@ -497,7 +527,7 @@ export function TextEditor() {
                 onClick={() => setZoom(zoom + 10)}
                 disabled={zoom >= 200}
               >
-                <ZoomInIcon className="w-4 h-4" />
+                <ZoomIn className="w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -511,7 +541,7 @@ export function TextEditor() {
               title="Gras (Ctrl+B)"
               disabled={selectionStart === selectionEnd}
             >
-              <BoldIcon className="w-4 h-4" />
+              <Bold className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -520,7 +550,7 @@ export function TextEditor() {
               title="Italique (Ctrl+I)"
               disabled={selectionStart === selectionEnd}
             >
-              <ItalicIcon className="w-4 h-4" />
+              <Italic className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -529,7 +559,7 @@ export function TextEditor() {
               title="Souligné (Ctrl+U)"
               disabled={selectionStart === selectionEnd}
             >
-              <UnderlineIcon className="w-4 h-4" />
+              <Underline className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -538,7 +568,7 @@ export function TextEditor() {
               disabled={selectionStart === selectionEnd}
               title="Barré"
             >
-              <StrikethroughIcon className="w-4 h-4" />
+              <Strikethrough className="w-4 h-4" />
             </Button>
 
             <div className="w-px h-6 bg-gray-300 mx-2" />
@@ -551,7 +581,7 @@ export function TextEditor() {
               disabled={selectionStart === selectionEnd}
               title="Aligner à gauche"
             >
-              <AlignLeftIcon className="w-4 h-4" />
+              <AlignLeft className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -560,7 +590,7 @@ export function TextEditor() {
               disabled={selectionStart === selectionEnd}
               title="Centrer"
             >
-              <AlignCenterIcon className="w-4 h-4" />
+              <AlignCenter className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -569,7 +599,7 @@ export function TextEditor() {
               disabled={selectionStart === selectionEnd}
               title="Aligner à droite"
             >
-              <AlignRightIcon className="w-4 h-4" />
+              <AlignRight className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -578,7 +608,7 @@ export function TextEditor() {
               disabled={selectionStart === selectionEnd}
               title="Justifier"
             >
-              <AlignJustifyIcon className="w-4 h-4" />
+              <AlignJustify className="w-4 h-4" />
             </Button>
 
             <div className="w-px h-6 bg-gray-300 mx-2" />
@@ -591,7 +621,7 @@ export function TextEditor() {
               disabled={selectionStart === selectionEnd}
               title="Liste à puces"
             >
-              <ListIcon className="w-4 h-4" />
+              <List className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -600,7 +630,7 @@ export function TextEditor() {
               disabled={selectionStart === selectionEnd}
               title="Liste numérotée"
             >
-              <ListOrderedIcon className="w-4 h-4" />
+              <ListOrdered className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -609,7 +639,7 @@ export function TextEditor() {
               disabled={selectionStart === selectionEnd}
               title="Citation"
             >
-              <QuoteIcon className="w-4 h-4" />
+              <Quote className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -618,7 +648,7 @@ export function TextEditor() {
               disabled={selectionStart === selectionEnd}
               title="Code"
             >
-              <CodeIcon className="w-4 h-4" />
+              <Code className="w-4 h-4" />
             </Button>
 
             <div className="w-px h-6 bg-gray-300 mx-2" />
@@ -631,7 +661,7 @@ export function TextEditor() {
               disabled={undoStack.length === 0}
               title="Annuler (Ctrl+Z)"
             >
-              <UndoIcon className="w-4 h-4" />
+              <Undo className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -640,7 +670,7 @@ export function TextEditor() {
               disabled={redoStack.length === 0}
               title="Rétablir (Ctrl+Y)"
             >
-              <RedoIcon className="w-4 h-4" />
+              <Redo className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -649,7 +679,7 @@ export function TextEditor() {
               disabled={!selectedText}
               title="Copier (Ctrl+C)"
             >
-              <CopyIcon className="w-4 h-4" />
+              <Copy className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -657,7 +687,7 @@ export function TextEditor() {
               onClick={pasteFromClipboard}
               title="Coller (Ctrl+V)"
             >
-              <ClipboardIcon className="w-4 h-4" />
+              <Clipboard className="w-4 h-4" />
             </Button>
 
             <div className="w-px h-6 bg-gray-300 mx-2" />
@@ -669,7 +699,7 @@ export function TextEditor() {
               onClick={() => setShowSearch(!showSearch)}
               title="Rechercher (Ctrl+F)"
             >
-              <SearchIcon className="w-4 h-4" />
+              <Search className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -677,7 +707,7 @@ export function TextEditor() {
               onClick={() => setShowReplace(!showReplace)}
               title="Remplacer (Ctrl+H)"
             >
-              <ReplaceIcon className="w-4 h-4" />
+              <Replace className="w-4 h-4" />
             </Button>
 
             <div className="w-px h-6 bg-gray-300 mx-2" />
@@ -689,7 +719,7 @@ export function TextEditor() {
               onClick={saveDocument}
               title="Sauvegarder (Ctrl+S)"
             >
-              <SaveIcon className="w-4 h-4" />
+              <Save className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
@@ -697,7 +727,7 @@ export function TextEditor() {
               onClick={downloadDocument}
               title="Télécharger"
             >
-              <DownloadIcon className="w-4 h-4" />
+              <Download className="w-4 h-4" />
             </Button>
           </div>
 
@@ -743,7 +773,7 @@ export function TextEditor() {
                     setReplaceQuery("")
                   }}
                 >
-                  <XIcon className="w-4 h-4" />
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
             </div>
