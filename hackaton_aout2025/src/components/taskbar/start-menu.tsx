@@ -151,7 +151,7 @@ export function StartMenu({ onClose }: StartMenuProps) {
         <Button
           variant="ghost"
           className="w-full justify-start"
-          onClick={() => handleOpenApp("settings", "Paramètres", { width: 700, height: 500 })}
+          onClick={() => handleOpenApp("settings", "Paramètres", { width: 900, height: 700 })}
         >
           <SettingsIcon className="w-4 h-4 mr-3" />
           Paramètres

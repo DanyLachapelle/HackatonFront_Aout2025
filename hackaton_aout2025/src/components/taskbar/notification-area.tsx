@@ -1,62 +1,22 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Bell, X, Settings, CheckCircle, AlertCircle, Info } from "lucide-react"
-
-interface Notification {
-  id: string
-  title: string
-  message: string
-  type: 'info' | 'success' | 'warning' | 'error'
-  timestamp: Date
-  read: boolean
-}
+import { useNotificationStore } from "@/stores/notification-store"
 
 export function NotificationArea() {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'Système',
-      message: 'Toutes les applications sont à jour',
-      type: 'success',
-      timestamp: new Date(Date.now() - 300000), // 5 minutes ago
-      read: false
-    },
-    {
-      id: '2',
-      title: 'Explorateur de fichiers',
-      message: 'Nouveau fichier créé avec succès',
-      type: 'info',
-      timestamp: new Date(Date.now() - 600000), // 10 minutes ago
-      read: false
-    },
-    {
-      id: '3',
-      title: 'Sécurité',
-      message: 'Vérification antivirus terminée',
-      type: 'success',
-      timestamp: new Date(Date.now() - 900000), // 15 minutes ago
-      read: true
-    }
-  ])
   const [showPanel, setShowPanel] = useState(false)
+  
+  const { 
+    notifications, 
+    markAsRead, 
+    markAllAsRead, 
+    deleteNotification, 
+    getUnreadCount 
+  } = useNotificationStore()
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  const unreadCount = getUnreadCount()
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    )
-  }
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-  }
-
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id))
-  }
-
-  const getNotificationIcon = (type: Notification['type']) => {
+  const getNotificationIcon = (type: 'info' | 'success' | 'warning' | 'error') => {
     switch (type) {
       case 'success':
         return <CheckCircle className="w-4 h-4 text-green-500" />
@@ -119,6 +79,10 @@ export function NotificationArea() {
                 variant="ghost"
                 size="sm"
                 className="text-xs"
+                onClick={() => {
+                  // Ici on pourrait ouvrir les paramètres de notifications
+                  console.log("Ouvrir paramètres de notifications")
+                }}
               >
                 <Settings className="w-3 h-3" />
               </Button>

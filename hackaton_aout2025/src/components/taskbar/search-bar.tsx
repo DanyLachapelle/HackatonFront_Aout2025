@@ -348,10 +348,10 @@ export function SearchBar() {
           action: () => {
             const appSizes = {
               calculator: { width: 320, height: 480 },
-              "text-editor": { width: 600, height: 400 },
+              "text-editor": { width: 800, height: 600 },
               "file-explorer": { width: 800, height: 600 },
               terminal: { width: 700, height: 500 },
-              settings: { width: 700, height: 500 },
+              settings: { width: 900, height: 700 },
               paint: { width: 800, height: 600 },
               "image-gallery": { width: 800, height: 600 },
               calendar: { width: 800, height: 650 },

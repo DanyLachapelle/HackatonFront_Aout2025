@@ -197,48 +197,28 @@ class FileService {
 
   // Fonction pour rechercher récursivement les fichiers musicaux
   async findMusicFiles(): Promise<FileItem[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const musicFiles: FileItem[] = []
-        
-        const searchRecursively = (path: string) => {
-          const items = mockFileSystem[path] || []
-          items.forEach(item => {
-            if (item.type === "file" && this.isMusicFile(item)) {
-              musicFiles.push(item)
-            } else if (item.type === "folder") {
-              searchRecursively(item.path)
-            }
-          })
-        }
-        
-        searchRecursively("/")
-        resolve(musicFiles)
-      }, 300)
-    })
+    try {
+      const response = await fetch(`${this.baseUrl}/files/search?query=.mp3,.wav,.flac`)
+      if (!response.ok) throw new Error('Erreur lors de la recherche')
+      const files = await response.json()
+      return files.filter((file: FileItem) => this.isMusicFile(file))
+    } catch (error) {
+      console.error('Erreur lors de la recherche de fichiers musicaux:', error)
+      return []
+    }
   }
 
   // Fonction pour rechercher récursivement les fichiers images
   async findImageFiles(): Promise<FileItem[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const imageFiles: FileItem[] = []
-        
-        const searchRecursively = (path: string) => {
-          const items = mockFileSystem[path] || []
-          items.forEach(item => {
-            if (item.type === "file" && this.isImageFile(item)) {
-              imageFiles.push(item)
-            } else if (item.type === "folder") {
-              searchRecursively(item.path)
-            }
-          })
-        }
-        
-        searchRecursively("/")
-        resolve(imageFiles)
-      }, 300)
-    })
+    try {
+      const response = await fetch(`${this.baseUrl}/files/search?query=.jpg,.png,.gif,.bmp`)
+      if (!response.ok) throw new Error('Erreur lors de la recherche')
+      const files = await response.json()
+      return files.filter((file: FileItem) => this.isImageFile(file))
+    } catch (error) {
+      console.error('Erreur lors de la recherche de fichiers images:', error)
+      return []
+    }
   }
 
   // Vérifier si un fichier est un fichier musical
@@ -262,103 +242,96 @@ class FileService {
   }
 
   async listFiles(path: string): Promise<FileItem[]> {
-    // Mock data pour le développement
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockFiles: FileItem[] = [
-          {
-            id: "1",
-            name: "Documents",
-            type: "folder",
-            path: "/Documents",
-            size: 0,
-            createdAt: new Date().toISOString(),
-            modifiedAt: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            name: "Images",
-            type: "folder",
-            path: "/Images",
-            size: 0,
-            createdAt: new Date().toISOString(),
-            modifiedAt: new Date().toISOString(),
-          },
-
-          {
-            id: "4",
-            name: "photo.jpg",
-            type: "file",
-            path: "/photo.jpg",
-            size: 2048576,
-            createdAt: new Date().toISOString(),
-            modifiedAt: new Date().toISOString(),
-            mimeType: "image/jpeg",
-          },
-        ]
-        resolve(mockFiles)
-      }, 500)
-    })
+    try {
+      const response = await fetch(`${this.baseUrl}/files/list?path=${encodeURIComponent(path)}`)
+      if (!response.ok) throw new Error('Erreur lors du chargement des fichiers')
+      return await response.json()
+    } catch (error) {
+      console.error('Erreur lors du chargement des fichiers:', error)
+      return []
+    }
   }
 
   async createFolder(parentPath: string, name: string): Promise<void> {
-    // Mock implementation
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`Creating folder: ${name} in ${parentPath}`)
-        resolve()
-      }, 300)
-    })
+    try {
+      const response = await fetch(`${this.baseUrl}/files/folder`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ parentPath, name })
+      })
+      if (!response.ok) throw new Error('Erreur lors de la création du dossier')
+    } catch (error) {
+      console.error('Erreur lors de la création du dossier:', error)
+      throw error
+    }
   }
 
   async createFile(parentPath: string, name: string, content: string): Promise<void> {
-    // Mock implementation
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`Creating file: ${name} in ${parentPath} with content: ${content}`)
-        resolve()
-      }, 300)
-    })
+    try {
+      const response = await fetch(`${this.baseUrl}/files/file`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ parentPath, name, content })
+      })
+      if (!response.ok) throw new Error('Erreur lors de la création du fichier')
+    } catch (error) {
+      console.error('Erreur lors de la création du fichier:', error)
+      throw error
+    }
   }
 
   async getFileContent(path: string): Promise<string> {
-    // Mock implementation
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockContent = `Contenu du fichier: ${path}\n\nCeci est un exemple de contenu de fichier.\nVous pouvez modifier ce texte et l'enregistrer.`
-        resolve(mockContent)
-      }, 300)
-    })
+    try {
+      const response = await fetch(`${this.baseUrl}/files/content?path=${encodeURIComponent(path)}`)
+      if (!response.ok) throw new Error('Erreur lors de la lecture du fichier')
+      return await response.text()
+    } catch (error) {
+      console.error('Erreur lors de la lecture du fichier:', error)
+      throw error
+    }
   }
 
   async updateFileContent(path: string, content: string): Promise<void> {
-    // Mock implementation
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`Updating file: ${path} with content: ${content}`)
-        resolve()
-      }, 300)
-    })
+    try {
+      const response = await fetch(`${this.baseUrl}/files/content`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path, content })
+      })
+      if (!response.ok) throw new Error('Erreur lors de la mise à jour du fichier')
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du fichier:', error)
+      throw error
+    }
   }
 
   async deleteFile(path: string): Promise<void> {
-    // Mock implementation
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`Deleting file: ${path}`)
-        resolve()
-      }, 300)
-    })
+    try {
+      const response = await fetch(`${this.baseUrl}/files?path=${encodeURIComponent(path)}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) throw new Error('Erreur lors de la suppression')
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error)
+      throw error
+    }
   }
 
   async downloadFile(path: string): Promise<Blob> {
-    // Mock implementation
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const blob = new Blob(["Mock file content"], { type: "text/plain" })
-        resolve(blob)
-      }, 300)
-    })
+    try {
+      const response = await fetch(`${this.baseUrl}/files/download?path=${encodeURIComponent(path)}`)
+      if (!response.ok) throw new Error('Erreur lors du téléchargement')
+      return await response.blob()
+    } catch (error) {
+      console.error('Erreur lors du téléchargement:', error)
+      throw error
+    }
   }
 }
 

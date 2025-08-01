@@ -125,7 +125,7 @@ export function Desktop() {
       const app = item as DesktopApp
       const appSizes = {
         calculator: { width: 320, height: 480 },
-        "text-editor": { width: 600, height: 400 },
+        "text-editor": { width: 800, height: 600 },
         "file-explorer": { width: 800, height: 600 },
         "image-gallery": { width: 800, height: 600 },
         terminal: { width: 700, height: 500 },
@@ -133,7 +133,7 @@ export function Desktop() {
         clock: { width: 600, height: 550 },
         paint: { width: 800, height: 600 },
         "music-player": { width: 500, height: 400 },
-        settings: { width: 700, height: 500 },
+        settings: { width: 900, height: 700 },
       }
 
       openWindow({

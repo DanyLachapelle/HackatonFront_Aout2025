@@ -19,13 +19,20 @@ import {
   SettingsIcon
 } from "lucide-react"
 import { useDesktopStore } from "@/stores/desktop-store"
+import { useNotificationStore } from "@/stores/notification-store"
 
 export function Settings() {
   const { wallpaper, setWallpaper } = useDesktopStore()
+  const { 
+    settings: notificationSettings, 
+    updateSettings: updateNotificationSettings, 
+    clearAllNotifications,
+    addNotification 
+  } = useNotificationStore()
+  
   const [settings, setSettings] = useState({
     theme: "system",
     language: "fr",
-    notifications: true,
     sound: true,
     autoSave: true,
     animations: true,
@@ -73,6 +80,13 @@ export function Settings() {
     { value: "yyyy-mm-dd", label: "YYYY-MM-DD" }
   ]
 
+  const notificationPositions = [
+    { value: "top-left", label: "Haut gauche" },
+    { value: "top-right", label: "Haut droite" },
+    { value: "bottom-left", label: "Bas gauche" },
+    { value: "bottom-right", label: "Bas droite" }
+  ]
+
   return (
     <div className="flex flex-col h-full p-4 bg-gradient-to-br from-gray-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
       <Card className="h-full">
@@ -82,7 +96,7 @@ export function Settings() {
             Paramètres
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex-1">
+        <CardContent className="flex-1 overflow-auto">
           <Tabs defaultValue="appearance" className="h-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="appearance" className="flex items-center gap-2">
@@ -311,8 +325,8 @@ export function Settings() {
                       </div>
                     </div>
                     <Switch
-                      checked={settings.notifications}
-                      onCheckedChange={(checked: boolean) => updateSetting("notifications", checked)}
+                      checked={notificationSettings.enabled}
+                      onCheckedChange={(checked: boolean) => updateNotificationSettings({ enabled: checked })}
                     />
                   </div>
 
@@ -320,37 +334,95 @@ export function Settings() {
                     <Label>Types de notifications</Label>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
+                        <span className="text-sm">Notifications système</span>
+                        <Switch 
+                          checked={notificationSettings.systemNotifications} 
+                          onCheckedChange={(checked: boolean) => updateNotificationSettings({ systemNotifications: checked })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
                         <span className="text-sm">Nouveaux messages</span>
-                        <Switch checked={settings.notifications} />
+                        <Switch 
+                          checked={notificationSettings.messageNotifications} 
+                          onCheckedChange={(checked: boolean) => updateNotificationSettings({ messageNotifications: checked })}
+                        />
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Mises à jour système</span>
-                        <Switch checked={settings.notifications} />
+                        <Switch 
+                          checked={notificationSettings.updateNotifications} 
+                          onCheckedChange={(checked: boolean) => updateNotificationSettings({ updateNotifications: checked })}
+                        />
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Rappels de calendrier</span>
-                        <Switch checked={settings.notifications} />
+                        <Switch 
+                          checked={notificationSettings.calendarNotifications} 
+                          onCheckedChange={(checked: boolean) => updateNotificationSettings({ calendarNotifications: checked })}
+                        />
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Minuteur terminé</span>
-                        <Switch checked={settings.notifications} />
+                        <Switch 
+                          checked={notificationSettings.timerNotifications} 
+                          onCheckedChange={(checked: boolean) => updateNotificationSettings({ timerNotifications: checked })}
+                        />
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-3">
                     <Label>Position des notifications</Label>
-                    <Select defaultValue="bottom-right">
+                    <Select 
+                      value={notificationSettings.position} 
+                      onValueChange={(value: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => 
+                        updateNotificationSettings({ position: value })
+                      }
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="top-left">Haut gauche</SelectItem>
-                        <SelectItem value="top-right">Haut droite</SelectItem>
-                        <SelectItem value="bottom-left">Bas gauche</SelectItem>
-                        <SelectItem value="bottom-right">Bas droite</SelectItem>
+                        {notificationPositions.map(pos => (
+                          <SelectItem key={pos.value} value={pos.value}>
+                            {pos.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label>Sons de notification</Label>
+                    <Switch
+                      checked={notificationSettings.sound}
+                      onCheckedChange={(checked: boolean) => updateNotificationSettings({ sound: checked })}
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t">
+                    <Button 
+                      variant="outline" 
+                      onClick={clearAllNotifications}
+                      className="w-full"
+                    >
+                      Effacer toutes les notifications
+                    </Button>
+                  </div>
+
+                  <div className="pt-4 border-t">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => addNotification({
+                        title: "Test de notification",
+                        message: "Ceci est un test de notification.",
+                        type: "info",
+                        category: "system"
+                      })}
+                      className="w-full"
+                    >
+                      Ajouter une notification de test
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -393,10 +465,12 @@ export function Settings() {
                       <div>✅ Horloge</div>
                       <div>✅ Calendrier</div>
                       <div>✅ Paramètres</div>
-                      <div>🔄 Éditeur de texte</div>
-                      <div>🔄 Explorateur de fichiers</div>
-                      <div>🔄 Terminal</div>
-                      <div>🔄 Galerie d'images</div>
+                      <div>✅ Éditeur de texte</div>
+                      <div>✅ Explorateur de fichiers</div>
+                      <div>✅ Terminal</div>
+                      <div>✅ Galerie d'images</div>
+                      <div>✅ Lecteur de musique</div>
+                      <div>✅ Paint</div>
                     </div>
                   </div>
 

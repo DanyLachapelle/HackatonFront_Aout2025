@@ -3,6 +3,7 @@ import { TaskBar } from "@/components/taskbar/taskbar"
 import { WindowManager } from "@/components/window-manager/window-manager"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { NotificationToaster } from "@/components/ui/notification-toast"
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <WindowManager />
         <TaskBar />
         <Toaster />
+        <NotificationToaster />
       </div>
     </ThemeProvider>
   )

@@ -1,14 +1,11 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { fileService } from "@/services/file-service"
 import { 
-  Bold, Italic, Underline, Strikethrough, Code, Quote, 
-  List, ListOrdered, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Search, Replace, Save, Download, Plus, Trash2, Copy, Clipboard,
-  Undo, Redo, ZoomIn, ZoomOut, Sun, Moon, Settings, FileText, Folder, X
+  Undo, Redo, ZoomIn, ZoomOut, Sun, Moon, FileText, X
 } from "lucide-react"
 
 interface TextDocument {
@@ -18,15 +15,6 @@ interface TextDocument {
   lastModified: Date
   isModified: boolean
   filePath?: string
-}
-
-interface TextStyle {
-  fontFamily: string
-  fontSize: number
-  fontWeight: string
-  fontStyle: string
-  textDecoration: string
-  textAlign: string
 }
 
 interface TextEditorProps {
@@ -39,27 +27,22 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
     {
       id: "1",
       name: "Document sans titre",
-      content: "Bienvenue dans l'éditeur de texte !\n\nVous pouvez commencer à écrire ici...\n\nFonctionnalités disponibles :\n• Formatage de texte (gras, italique, souligné)\n• Alignement du texte\n• Listes à puces et numérotées\n• Recherche et remplacement\n• Thèmes sombre/clair\n• Zoom in/out\n• Sauvegarde automatique",
+      content: "Bienvenue dans l'éditeur de texte !\n\nVous pouvez commencer à écrire ici...\n\nFonctionnalités disponibles :\n• Recherche et remplacement\n• Thèmes sombre/clair\n• Zoom in/out\n• Sauvegarde automatique",
       lastModified: new Date(),
       isModified: false
     }
   ])
   
   const [currentDocument, setCurrentDocument] = useState<TextDocument>(documents[0])
-  const [selectedText, setSelectedText] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [replaceQuery, setReplaceQuery] = useState("")
   const [showSearch, setShowSearch] = useState(false)
   const [showReplace, setShowReplace] = useState(false)
   const [theme, setTheme] = useState<"light" | "dark">("light")
   const [zoom, setZoom] = useState(100)
-  const [fontSize, setFontSize] = useState(14)
-  const [fontFamily, setFontFamily] = useState("Arial")
   const [showSidebar, setShowSidebar] = useState(true)
   const [undoStack, setUndoStack] = useState<string[]>([])
   const [redoStack, setRedoStack] = useState<string[]>([])
-  const [selectionStart, setSelectionStart] = useState(0)
-  const [selectionEnd, setSelectionEnd] = useState(0)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -106,13 +89,6 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
     }
   }
 
-  const fonts = [
-    "Arial", "Helvetica", "Times New Roman", "Georgia", 
-    "Courier New", "Verdana", "Tahoma", "Trebuchet MS"
-  ]
-
-  const fontSizes = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 32, 36, 40, 48, 56, 64, 72]
-
   // Gestion des raccourcis clavier
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -142,28 +118,16 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
             e.preventDefault()
             redo()
             break
-          case "b":
-            e.preventDefault()
-            formatText("bold")
-            break
-          case "i":
-            e.preventDefault()
-            formatText("italic")
-            break
-          case "u":
-            e.preventDefault()
-            formatText("underline")
-            break
         }
       }
     }
 
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [currentDocument])
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const saveToHistory = (content: string) => {
-    setUndoStack(prev => [...prev, content])
+    setUndoStack(prev => [...prev, currentDocument.content])
     setRedoStack([])
   }
 
@@ -186,7 +150,7 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
   }
 
   const updateDocumentContent = (content: string) => {
-    const updatedDoc = { ...currentDocument, content, isModified: true, lastModified: new Date() }
+    const updatedDoc = { ...currentDocument, content, isModified: true }
     setCurrentDocument(updatedDoc)
     setDocuments(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc))
   }
@@ -196,118 +160,18 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
     updateDocumentContent(content)
   }
 
-  const handleSelectionChange = () => {
-    const textarea = textareaRef.current
-    if (textarea) {
-      const start = textarea.selectionStart
-      const end = textarea.selectionEnd
-      setSelectionStart(start)
-      setSelectionEnd(end)
-      setSelectedText(textarea.value.substring(start, end))
-    }
-  }
-
-  const applyStyleToSelection = (styleFunction: (text: string) => string) => {
-    const textarea = textareaRef.current
-    if (!textarea || selectionStart === selectionEnd) return
-
-    const beforeSelection = textarea.value.substring(0, selectionStart)
-    const selectedText = textarea.value.substring(selectionStart, selectionEnd)
-    const afterSelection = textarea.value.substring(selectionEnd)
-    
-    const styledText = styleFunction(selectedText)
-    const newContent = beforeSelection + styledText + afterSelection
-    
-    updateDocumentContent(newContent)
-    
-    // Restaurer la sélection
-    setTimeout(() => {
-      textarea.setSelectionRange(selectionStart, selectionStart + styledText.length)
-      textarea.focus()
-    }, 0)
-  }
-
-  const formatText = (format: string) => {
-    if (selectionStart === selectionEnd) return
-
-    const styleFunction = (text: string) => {
-      switch (format) {
-        case "bold":
-          return `<strong>${text}</strong>`
-        case "italic":
-          return `<em>${text}</em>`
-        case "underline":
-          return `<u>${text}</u>`
-        case "strikethrough":
-          return `<del>${text}</del>`
-        case "code":
-          return `<code>${text}</code>`
-        case "quote":
-          return `<blockquote>${text}</blockquote>`
-        case "list":
-          return text.split('\n').map(line => `<li>${line}</li>`).join('\n')
-        case "orderedList":
-          return text.split('\n').map((line, index) => `<li>${index + 1}. ${line}</li>`).join('\n')
-        default:
-          return text
-      }
-    }
-
-    applyStyleToSelection(styleFunction)
-  }
-
-  const alignText = (alignment: string) => {
-    if (selectionStart === selectionEnd) return
-
-    const styleFunction = (text: string) => {
-      const alignClass = {
-        left: 'text-left',
-        center: 'text-center',
-        right: 'text-right',
-        justify: 'text-justify'
-      }[alignment] || 'text-left'
-      
-      return `<div class="${alignClass}">${text}</div>`
-    }
-
-    applyStyleToSelection(styleFunction)
-  }
-
-  const applyFontToSelection = (newFontFamily: string) => {
-    if (selectionStart === selectionEnd) return
-
-    const styleFunction = (text: string) => {
-      return `<span style="font-family: ${newFontFamily}">${text}</span>`
-    }
-
-    applyStyleToSelection(styleFunction)
-  }
-
-  const applyFontSizeToSelection = (newFontSize: number) => {
-    if (selectionStart === selectionEnd) return
-
-    const styleFunction = (text: string) => {
-      return `<span style="font-size: ${newFontSize}px">${text}</span>`
-    }
-
-    applyStyleToSelection(styleFunction)
-  }
-
   const findText = () => {
     if (!searchQuery) return
     
     const textarea = textareaRef.current
     if (!textarea) return
-
+    
     const content = textarea.value
     const index = content.toLowerCase().indexOf(searchQuery.toLowerCase())
     
     if (index !== -1) {
-      textarea.setSelectionRange(index, index + searchQuery.length)
       textarea.focus()
-      setSelectionStart(index)
-      setSelectionEnd(index + searchQuery.length)
-      setSelectedText(searchQuery)
+      textarea.setSelectionRange(index, index + searchQuery.length)
     }
   }
 
@@ -316,19 +180,16 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
     
     const textarea = textareaRef.current
     if (!textarea) return
-
+    
     const content = textarea.value
-    const newContent = content.replace(new RegExp(searchQuery, 'gi'), replaceQuery)
+    const newContent = content.replace(searchQuery, replaceQuery)
     updateDocumentContent(newContent)
   }
 
   const replaceAllText = () => {
     if (!searchQuery || !replaceQuery) return
     
-    const textarea = textareaRef.current
-    if (!textarea) return
-
-    const content = textarea.value
+    const content = currentDocument.content
     const newContent = content.replace(new RegExp(searchQuery, 'gi'), replaceQuery)
     updateDocumentContent(newContent)
   }
@@ -383,8 +244,10 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
   }
 
   const copyToClipboard = async () => {
-    if (selectedText) {
-      await navigator.clipboard.writeText(selectedText)
+    try {
+      await navigator.clipboard.writeText(currentDocument.content)
+    } catch (error) {
+      console.error('Erreur lors de la copie:', error)
     }
   }
 
@@ -446,14 +309,11 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
                         e.stopPropagation()
                         deleteDocument(doc.id)
                       }}
-                      className="opacity-0 group-hover:opacity-100"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {doc.lastModified.toLocaleDateString()}
-                  </p>
                 </div>
               ))}
             </div>
@@ -464,46 +324,114 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
       {/* Zone principale */}
       <div className="flex-1 flex flex-col">
         {/* Barre d'outils */}
-        <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-2">
-          <div className="flex items-center justify-between mb-2">
+        <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-2">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowSidebar(!showSidebar)}
               >
-                <Folder className="w-4 h-4" />
+                <FileText className="w-4 h-4" />
               </Button>
               
-              <select
-                value={fontFamily}
-                onChange={(e) => {
-                  setFontFamily(e.target.value)
-                  applyFontToSelection(e.target.value)
-                }}
-                className="px-2 py-1 border rounded text-sm"
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={saveDocument}
+                disabled={!currentDocument.isModified}
               >
-                {fonts.map(font => (
-                  <option key={font} value={font}>{font}</option>
-                ))}
-              </select>
+                <Save className="w-4 h-4" />
+              </Button>
               
-              <select
-                value={fontSize}
-                onChange={(e) => {
-                  const newSize = Number(e.target.value)
-                  setFontSize(newSize)
-                  applyFontSizeToSelection(newSize)
-                }}
-                className="px-2 py-1 border rounded text-sm w-16"
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={downloadDocument}
               >
-                {fontSizes.map(size => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
+                <Download className="w-4 h-4" />
+              </Button>
+              
+              <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSearch(!showSearch)}
+              >
+                <Search className="w-4 h-4" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowReplace(!showReplace)}
+              >
+                <Replace className="w-4 h-4" />
+              </Button>
+              
+              <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={undo}
+                disabled={undoStack.length === 0}
+              >
+                <Undo className="w-4 h-4" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={redo}
+                disabled={redoStack.length === 0}
+              >
+                <Redo className="w-4 h-4" />
+              </Button>
+              
+              <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={copyToClipboard}
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={pasteFromClipboard}
+              >
+                <Clipboard className="w-4 h-4" />
+              </Button>
             </div>
-
+            
             <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setZoom(Math.max(50, zoom - 10))}
+              >
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              
+              <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[3rem] text-center">
+                {zoom}%
+              </span>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setZoom(Math.min(200, zoom + 10))}
+              >
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              
+              <div className="w-px h-6 bg-gray-300 dark:bg-gray-600" />
+              
               <Button
                 variant="ghost"
                 size="sm"
@@ -511,250 +439,31 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
               >
                 {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
               </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setZoom(zoom - 10)}
-                disabled={zoom <= 50}
-              >
-                <ZoomOut className="w-4 h-4" />
-              </Button>
-              <span className="text-sm min-w-[50px] text-center">{zoom}%</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setZoom(zoom + 10)}
-                disabled={zoom >= 200}
-              >
-                <ZoomIn className="w-4 h-4" />
-              </Button>
             </div>
           </div>
-
-          <div className="flex items-center space-x-1 flex-wrap">
-            {/* Formatage */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => formatText("bold")}
-              title="Gras (Ctrl+B)"
-              disabled={selectionStart === selectionEnd}
-            >
-              <Bold className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => formatText("italic")}
-              title="Italique (Ctrl+I)"
-              disabled={selectionStart === selectionEnd}
-            >
-              <Italic className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => formatText("underline")}
-              title="Souligné (Ctrl+U)"
-              disabled={selectionStart === selectionEnd}
-            >
-              <Underline className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => formatText("strikethrough")}
-              disabled={selectionStart === selectionEnd}
-              title="Barré"
-            >
-              <Strikethrough className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px h-6 bg-gray-300 mx-2" />
-
-            {/* Alignement */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => alignText("left")}
-              disabled={selectionStart === selectionEnd}
-              title="Aligner à gauche"
-            >
-              <AlignLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => alignText("center")}
-              disabled={selectionStart === selectionEnd}
-              title="Centrer"
-            >
-              <AlignCenter className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => alignText("right")}
-              disabled={selectionStart === selectionEnd}
-              title="Aligner à droite"
-            >
-              <AlignRight className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => alignText("justify")}
-              disabled={selectionStart === selectionEnd}
-              title="Justifier"
-            >
-              <AlignJustify className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px h-6 bg-gray-300 mx-2" />
-
-            {/* Listes */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => formatText("list")}
-              disabled={selectionStart === selectionEnd}
-              title="Liste à puces"
-            >
-              <List className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => formatText("orderedList")}
-              disabled={selectionStart === selectionEnd}
-              title="Liste numérotée"
-            >
-              <ListOrdered className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => formatText("quote")}
-              disabled={selectionStart === selectionEnd}
-              title="Citation"
-            >
-              <Quote className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => formatText("code")}
-              disabled={selectionStart === selectionEnd}
-              title="Code"
-            >
-              <Code className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px h-6 bg-gray-300 mx-2" />
-
-            {/* Édition */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={undo}
-              disabled={undoStack.length === 0}
-              title="Annuler (Ctrl+Z)"
-            >
-              <Undo className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={redo}
-              disabled={redoStack.length === 0}
-              title="Rétablir (Ctrl+Y)"
-            >
-              <Redo className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={copyToClipboard}
-              disabled={!selectedText}
-              title="Copier (Ctrl+C)"
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={pasteFromClipboard}
-              title="Coller (Ctrl+V)"
-            >
-              <Clipboard className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px h-6 bg-gray-300 mx-2" />
-
-            {/* Recherche */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSearch(!showSearch)}
-              title="Rechercher (Ctrl+F)"
-            >
-              <Search className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowReplace(!showReplace)}
-              title="Remplacer (Ctrl+H)"
-            >
-              <Replace className="w-4 h-4" />
-            </Button>
-
-            <div className="w-px h-6 bg-gray-300 mx-2" />
-
-            {/* Fichier */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={saveDocument}
-              title="Sauvegarder (Ctrl+S)"
-            >
-              <Save className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={downloadDocument}
-              title="Télécharger"
-            >
-              <Download className="w-4 h-4" />
-            </Button>
-          </div>
-
+          
           {/* Barre de recherche/remplacement */}
           {(showSearch || showReplace) && (
-            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded border">
+            <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded border">
               <div className="flex items-center space-x-2">
                 <Input
                   placeholder="Rechercher..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1"
-                  onKeyDown={(e) => e.key === 'Enter' && findText()}
                 />
-                {showReplace && (
-                  <Input
-                    placeholder="Remplacer par..."
-                    value={replaceQuery}
-                    onChange={(e) => setReplaceQuery(e.target.value)}
-                    className="flex-1"
-                  />
-                )}
                 <Button size="sm" onClick={findText}>
                   Rechercher
                 </Button>
+                
                 {showReplace && (
                   <>
+                    <Input
+                      placeholder="Remplacer par..."
+                      value={replaceQuery}
+                      onChange={(e) => setReplaceQuery(e.target.value)}
+                      className="flex-1"
+                    />
                     <Button size="sm" onClick={replaceText}>
                       Remplacer
                     </Button>
@@ -763,6 +472,7 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
                     </Button>
                   </>
                 )}
+                
                 <Button
                   variant="ghost"
                   size="sm"
@@ -781,42 +491,33 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
         </div>
 
         {/* Zone de texte */}
-        <div className="flex-1 p-4 overflow-auto">
+        <div className="flex-1 p-4">
           <Textarea
             ref={textareaRef}
             value={currentDocument.content}
             onChange={(e) => handleContentChange(e.target.value)}
-            onSelect={handleSelectionChange}
-            className="w-full h-full resize-none border-0 focus:ring-0 text-base leading-relaxed"
+            className={`w-full h-full resize-none border-0 focus:ring-0 text-sm font-mono ${
+              theme === 'dark' 
+                ? 'bg-gray-900 text-gray-100' 
+                : 'bg-white text-gray-900'
+            }`}
             style={{
-              fontFamily,
-              fontSize: `${fontSize}px`,
-              transform: `scale(${zoom / 100})`,
-              transformOrigin: 'top left',
-              minHeight: '100%'
+              fontSize: `${zoom}%`,
+              lineHeight: '1.5'
             }}
             placeholder="Commencez à écrire..."
           />
         </div>
 
         {/* Barre de statut */}
-        <div className="bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-2">
+        <div className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-4 py-2">
           <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-            <div className="flex items-center space-x-4">
-              <span>Document: {currentDocument.name}</span>
-              <span>Caractères: {currentDocument.content.length}</span>
-              <span>Mots: {currentDocument.content.split(/\s+/).filter(word => word.length > 0).length}</span>
-              <span>Lignes: {currentDocument.content.split('\n').length}</span>
-              {selectedText && (
-                <span>Sélection: {selectedText.length} caractères</span>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              {currentDocument.isModified && (
-                <span className="text-orange-500">Modifié</span>
-              )}
-              <span>Dernière modification: {currentDocument.lastModified.toLocaleString()}</span>
-            </div>
+            <span>
+              {currentDocument.content.length} caractères
+            </span>
+            <span>
+              {currentDocument.isModified ? 'Modifié' : 'Sauvegardé'}
+            </span>
           </div>
         </div>
       </div>
