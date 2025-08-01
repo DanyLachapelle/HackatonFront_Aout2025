@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Complet API Backend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ccc;
+        }
+        .test-section.success {
+            border-left-color: #4caf50;
+            background-color: #f1f8e9;
+        }
+        .test-section.error {
+            border-left-color: #f44336;
+            background-color: #ffebee;
+        }
+        .test-section.warning {
+            border-left-color: #ff9800;
+            background-color: #fff3e0;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        pre {
+            background: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .summary {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #4caf50;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Complet API Backend</h1>
+    <p>Ce test vérifie tous les endpoints du backend pour identifier les problèmes de liaison.</p>
+    
+    <div class="summary">
+        <h3>Résumé des Tests</h3>
+        <div class="progress">
+            <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+        </div>
+        <p>Tests réussis: <span id="success-count">0</span> / <span id="total-count">0</span></p>
+    </div>
+
+    <button onclick="runAllTests()">🚀 Lancer Tous les Tests</button>
+    <button onclick="clearResults()">🗑️ Effacer les Résultats</button>
+
+    <h2>📁 Tests de Gestion des Fichiers</h2>
+    <div id="file-management-tests">
+        <div class="test-section" id="connection-test">
+            <h4>Test de Connexion</h4>
+            <p>Vérification de la connectivité au backend</p>
+            <button onclick="testConnection()">Tester</button>
+            <div id="connection-result"></div>
+        </div>
+
+        <div class="test-section" id="list-folders-test">
+            <h4>Liste des Dossiers</h4>
+            <p>Récupération de la liste des dossiers</p>
+            <button onclick="testListFolders()">Tester</button>
+            <div id="list-folders-result"></div>
+        </div>
+
+        <div class="test-section" id="list-files-test">
+            <h4>Liste des Fichiers</h4>
+            <p>Récupération de la liste des fichiers</p>
+            <button onclick="testListFiles()">Tester</button>
+            <div id="list-files-result"></div>
+        </div>
+
+        <div class="test-section" id="create-folder-test">
+            <h4>Création de Dossier</h4>
+            <p>Création d'un nouveau dossier de test</p>
+            <button onclick="testCreateFolder()">Tester</button>
+            <div id="create-folder-result"></div>
+        </div>
+
+        <div class="test-section" id="create-file-test">
+            <h4>Création de Fichier</h4>
+            <p>Création d'un nouveau fichier de test</p>
+            <button onclick="testCreateFile()">Tester</button>
+            <div id="create-file-result"></div>
+        </div>
+
+        <div class="test-section" id="search-folders-test">
+            <h4>Recherche de Dossiers</h4>
+            <p>Recherche de dossiers par nom</p>
+            <button onclick="testSearchFolders()">Tester</button>
+            <div id="search-folders-result"></div>
+        </div>
+
+        <div class="test-section" id="search-files-test">
+            <h4>Recherche de Fichiers</h4>
+            <p>Recherche de fichiers par nom</p>
+            <button onclick="testSearchFiles()">Tester</button>
+            <div id="search-files-result"></div>
+        </div>
+
+        <div class="test-section" id="images-test">
+            <h4>Fichiers Images</h4>
+            <p>Récupération des fichiers images</p>
+            <button onclick="testImages()">Tester</button>
+            <div id="images-result"></div>
+        </div>
+
+        <div class="test-section" id="audio-test">
+            <h4>Fichiers Audio</h4>
+            <p>Récupération des fichiers audio</p>
+            <button onclick="testAudio()">Tester</button>
+            <div id="audio-result"></div>
+        </div>
+
+        <div class="test-section" id="text-test">
+            <h4>Fichiers Texte</h4>
+            <p>Récupération des fichiers texte</p>
+            <button onclick="testText()">Tester</button>
+            <div id="text-result"></div>
+        </div>
+    </div>
+
+    <h2>📅 Tests du Calendrier</h2>
+    <div id="calendar-tests">
+        <div class="test-section" id="calendar-events-test">
+            <h4>Événements du Calendrier</h4>
+            <p>Récupération des événements du calendrier</p>
+            <button onclick="testCalendarEvents()">Tester</button>
+            <div id="calendar-events-result"></div>
+        </div>
+
+        <div class="test-section" id="create-event-test">
+            <h4>Création d'Événement</h4>
+            <p>Création d'un nouvel événement</p>
+            <button onclick="testCreateEvent()">Tester</button>
+            <div id="create-event-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/v2';
+        const USER_ID = 1;
+        let testResults = {
+            success: 0,
+            total: 0
+        };
+
+        function showResult(elementId, success, message, data = null) {
+            const element = document.getElementById(elementId);
+            const resultDiv = document.getElementById(elementId + '-result');
+            
+            element.className = `test-section ${success ? 'success' : 'error'}`;
+            resultDiv.innerHTML = `
+                <h4>${success ? '✅ Succès' : '❌ Erreur'}</h4>
+                <p>${message}</p>
+                ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+            `;
+            
+            testResults.total++;
+            if (success) testResults.success++;
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const progressBar = document.getElementById('progress-bar');
+            const successCount = document.getElementById('success-count');
+            const totalCount = document.getElementById('total-count');
+            
+            const percentage = testResults.total > 0 ? (testResults.success / testResults.total) * 100 : 0;
+            progressBar.style.width = percentage + '%';
+            successCount.textContent = testResults.success;
+            totalCount.textContent = testResults.total;
+        }
+
+        function clearResults() {
+            testResults = { success: 0, total: 0 };
+            updateProgress();
+            document.querySelectorAll('.test-section').forEach(el => {
+                el.className = 'test-section';
+                const resultDiv = el.querySelector('[id$="-result"]');
+                if (resultDiv) resultDiv.innerHTML = '';
+            });
+        }
+
+        // Tests de gestion des fichiers
+        async function testConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/files/folders?path=/&userId=${USER_ID}`);
+                if (response.ok) {
+                    showResult('connection-test', true, 'Connexion réussie au backend');
+                } else {
+                    showResult('connection-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('connection-test', false, `Erreur de connexion: ${error.message}`);
+            }
+        }
+
+        async function testListFolders() {
+            try {
+                const response = await fetch(`${API_BASE}/files/folders?path=/&userId=${USER_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('list-folders-test', true, `Récupéré ${data.length} dossiers`, data);
+                } else {
+                    showResult('list-folders-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('list-folders-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        async function testListFiles() {
+            try {
+                const response = await fetch(`${API_BASE}/files/files?path=/&userId=${USER_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('list-files-test', true, `Récupéré ${data.length} fichiers`, data);
+                } else {
+                    showResult('list-files-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('list-files-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        async function testCreateFolder() {
+            try {
+                const testFolderName = `test-folder-${Date.now()}`;
+                const response = await fetch(`${API_BASE}/files/folders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        parentPath: '/',
+                        name: testFolderName,
+                        userId: USER_ID
+                    })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('create-folder-test', true, `Dossier créé: ${testFolderName}`, data);
+                } else {
+                    showResult('create-folder-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('create-folder-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        async function testCreateFile() {
+            try {
+                const testFileName = `test-file-${Date.now()}.txt`;
+                const response = await fetch(`${API_BASE}/files/files`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        parentPath: '/',
+                        name: testFileName,
+                        content: 'Contenu de test',
+                        userId: USER_ID
+                    })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('create-file-test', true, `Fichier créé: ${testFileName}`, data);
+                } else {
+                    showResult('create-file-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('create-file-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        async function testSearchFolders() {
+            try {
+                const response = await fetch(`${API_BASE}/files/folders/search?query=test&userId=${USER_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('search-folders-test', true, `Recherche de dossiers: ${data.length} résultats`, data);
+                } else {
+                    showResult('search-folders-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('search-folders-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        async function testSearchFiles() {
+            try {
+                const response = await fetch(`${API_BASE}/files/search?query=test&userId=${USER_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('search-files-test', true, `Recherche de fichiers: ${data.length} résultats`, data);
+                } else {
+                    showResult('search-files-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('search-files-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        async function testImages() {
+            try {
+                const response = await fetch(`${API_BASE}/files/images?userId=${USER_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('images-test', true, `Fichiers images: ${data.length} trouvés`, data);
+                } else {
+                    showResult('images-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('images-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        async function testAudio() {
+            try {
+                const response = await fetch(`${API_BASE}/files/audio?userId=${USER_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('audio-test', true, `Fichiers audio: ${data.length} trouvés`, data);
+                } else {
+                    showResult('audio-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('audio-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        async function testText() {
+            try {
+                const response = await fetch(`${API_BASE}/files/text?userId=${USER_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('text-test', true, `Fichiers texte: ${data.length} trouvés`, data);
+                } else {
+                    showResult('text-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('text-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        // Tests du calendrier
+        async function testCalendarEvents() {
+            try {
+                const response = await fetch(`${API_BASE}/calendar/events?userId=${USER_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('calendar-events-test', true, `Événements: ${data.length} trouvés`, data);
+                } else {
+                    showResult('calendar-events-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('calendar-events-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        async function testCreateEvent() {
+            try {
+                const response = await fetch(`${API_BASE}/calendar/events`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: 'Test Event',
+                        description: 'Événement de test',
+                        startDate: new Date().toISOString(),
+                        color: '#3b82f6',
+                        isAllDay: true,
+                        userId: USER_ID
+                    })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('create-event-test', true, 'Événement créé avec succès', data);
+                } else {
+                    showResult('create-event-test', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('create-event-test', false, `Erreur: ${error.message}`);
+            }
+        }
+
+        async function runAllTests() {
+            clearResults();
+            
+            // Tests de gestion des fichiers
+            await testConnection();
+            await testListFolders();
+            await testListFiles();
+            await testCreateFolder();
+            await testCreateFile();
+            await testSearchFolders();
+            await testSearchFiles();
+            await testImages();
+            await testAudio();
+            await testText();
+            
+            // Tests du calendrier
+            await testCalendarEvents();
+            await testCreateEvent();
+            
+            console.log(`Tests terminés: ${testResults.success}/${testResults.total} réussis`);
+        }
+    </script>
+</body>
+</html> 

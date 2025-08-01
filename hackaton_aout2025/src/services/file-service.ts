@@ -77,6 +77,30 @@ class FileService {
     }
   }
 
+  // === MÉTHODES DE TEST ===
+
+  async testConnection(): Promise<boolean> {
+    try {
+      console.log('Test de connexion au backend...')
+      console.log('URL de base:', this.baseUrl)
+      
+      const response = await fetch(`${this.baseUrl}/files/folders?path=/&userId=${this.userId}`)
+      console.log('Réponse du backend:', response.status, response.statusText)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Données reçues:', data)
+        return true
+      } else {
+        console.error('Erreur HTTP:', response.status, response.statusText)
+        return false
+      }
+    } catch (error) {
+      console.error('Erreur de connexion:', error)
+      return false
+    }
+  }
+
   // === GESTION DES FICHIERS ===
 
   async listFiles(path: string): Promise<FileItem[]> {
@@ -144,6 +168,43 @@ class FileService {
     }
   }
 
+  // Méthode alternative pour compatibilité avec le menu contextuel
+  async createFolderWithObject(request: { name: string; path: string; userId: number }): Promise<void> {
+    try {
+      console.log('Tentative de création de dossier:', request)
+      console.log('URL de l\'API:', `${this.baseUrl}/files/folders`)
+      
+      const folderRequest: CreateFolderRequest = {
+        parentPath: request.path,
+        name: request.name,
+        userId: request.userId
+      }
+      
+      console.log('Requête envoyée:', folderRequest)
+      
+      const response = await fetch(`${this.baseUrl}/files/folders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(folderRequest)
+      })
+      
+      console.log('Réponse reçue:', response.status, response.statusText)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Erreur HTTP:', response.status, errorText)
+        throw new Error(`Erreur lors de la création du dossier: ${response.status} ${response.statusText}`)
+      }
+      
+      console.log('Dossier créé avec succès')
+    } catch (error) {
+      console.error('Erreur lors de la création du dossier:', error)
+      throw error
+    }
+  }
+
   async createFile(parentPath: string, name: string, content: string): Promise<void> {
     try {
       const request: CreateFileRequest = {
@@ -159,6 +220,30 @@ class FileService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(request)
+      })
+      if (!response.ok) throw new Error('Erreur lors de la création du fichier')
+    } catch (error) {
+      console.error('Erreur lors de la création du fichier:', error)
+      throw error
+    }
+  }
+
+  // Méthode alternative pour compatibilité avec le menu contextuel
+  async createFileWithObject(request: { name: string; path: string; content: string; userId: number }): Promise<void> {
+    try {
+      const fileRequest: CreateFileRequest = {
+        parentPath: request.path,
+        name: request.name,
+        content: request.content,
+        userId: request.userId
+      }
+      
+      const response = await fetch(`${this.baseUrl}/files/files`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(fileRequest)
       })
       if (!response.ok) throw new Error('Erreur lors de la création du fichier')
     } catch (error) {
@@ -298,10 +383,23 @@ class FileService {
       const files: FileDto[] = await response.json()
       return files.map(file => this.fileDtoToFileItem(file))
     } catch (error) {
-      console.error('Erreur lors de la recherche:', error)
+      console.error('Erreur lors de la recherche de fichiers:', error)
       return []
     }
   }
+
+  async searchFolders(query: string): Promise<FileItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/folders/search?query=${encodeURIComponent(query)}&userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors de la recherche')
+      const folders: FolderDto[] = await response.json()
+      return folders.map(folder => this.folderDtoToFileItem(folder))
+    } catch (error) {
+      console.error('Erreur lors de la recherche de dossiers:', error)
+      return []
+    }
+  }
+
 
   async searchFilesByType(contentType: string): Promise<FileItem[]> {
     try {

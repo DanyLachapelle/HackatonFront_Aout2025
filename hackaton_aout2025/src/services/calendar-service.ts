@@ -36,6 +36,17 @@ export interface UpdateEventRequest {
   location?: string
 }
 
+export interface EventReminder {
+  id: number
+  eventId: number
+  reminderTime: string
+  reminderType: '5min' | '15min' | '30min' | '1hour' | '1day'
+  isSent: boolean
+  createdAt: string
+  eventTitle: string
+  eventStartDate: string
+}
+
 class CalendarService {
   private baseUrl = `${config.apiUrl}/calendar`
   private userId = config.defaultUserId
@@ -135,6 +146,84 @@ class CalendarService {
 
   getDefaultEventColor(): string {
     return '#3b82f6' // Bleu par défaut
+  }
+
+  // === GESTION DES RAPPELS ===
+
+  async createReminder(eventId: number, reminderType: string): Promise<EventReminder | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/events/${eventId}/reminders?reminderType=${reminderType}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      if (!response.ok) throw new Error('Erreur lors de la création du rappel')
+      return await response.json()
+    } catch (error) {
+      console.error('Erreur lors de la création du rappel:', error)
+      return null
+    }
+  }
+
+  async getEventReminders(eventId: number): Promise<EventReminder[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/events/${eventId}/reminders`)
+      if (!response.ok) throw new Error('Erreur lors du chargement des rappels')
+      return await response.json()
+    } catch (error) {
+      console.error('Erreur lors du chargement des rappels:', error)
+      return []
+    }
+  }
+
+  async getPendingReminders(): Promise<EventReminder[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/reminders/pending?userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors du chargement des rappels')
+      return await response.json()
+    } catch (error) {
+      console.error('Erreur lors du chargement des rappels:', error)
+      return []
+    }
+  }
+
+  async getRemindersToSend(): Promise<EventReminder[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/reminders/to-send`)
+      if (!response.ok) throw new Error('Erreur lors du chargement des rappels')
+      return await response.json()
+    } catch (error) {
+      console.error('Erreur lors du chargement des rappels:', error)
+      return []
+    }
+  }
+
+  async markReminderAsSent(reminderId: number): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/reminders/${reminderId}/mark-sent`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      return response.ok
+    } catch (error) {
+      console.error('Erreur lors du marquage du rappel:', error)
+      return false
+    }
+  }
+
+  async deleteReminder(reminderId: number): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/reminders/${reminderId}`, {
+        method: 'DELETE'
+      })
+      return response.ok
+    } catch (error) {
+      console.error('Erreur lors de la suppression du rappel:', error)
+      return false
+    }
   }
 }
 

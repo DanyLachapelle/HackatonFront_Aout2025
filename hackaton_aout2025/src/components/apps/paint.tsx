@@ -425,16 +425,59 @@ export function Paint({ windowId }: PaintProps) {
 
           {/* Aperçu du pinceau */}
           <div className="mb-6">
-            <h3 className="text-sm font-medium mb-3">Aperçu</h3>
+            <h3 className="text-sm font-medium mb-3">Aperçu - {tools.find(t => t.id === currentTool)?.label}</h3>
             <div className="flex items-center justify-center h-16 bg-gray-100 dark:bg-gray-700 rounded">
-              <div
-                className="rounded-full"
-                style={{
-                  backgroundColor: currentColor,
-                  width: brushSize * 2,
-                  height: brushSize * 2
-                }}
-              />
+              {currentTool === "pencil" && (
+                <div
+                  className="rounded-full"
+                  style={{
+                    backgroundColor: currentColor,
+                    width: brushSize * 2,
+                    height: brushSize * 2
+                  }}
+                />
+              )}
+              {currentTool === "eraser" && (
+                <div
+                  className="rounded-full border-2 border-gray-400"
+                  style={{
+                    backgroundColor: "#ffffff",
+                    width: brushSize * 2,
+                    height: brushSize * 2
+                  }}
+                />
+              )}
+              {currentTool === "rectangle" && (
+                <div
+                  className="border-2 border-gray-400"
+                  style={{
+                    backgroundColor: "transparent",
+                    width: brushSize * 3,
+                    height: brushSize * 2
+                  }}
+                />
+              )}
+              {currentTool === "circle" && (
+                <div
+                  className="border-2 border-gray-400 rounded-full"
+                  style={{
+                    backgroundColor: "transparent",
+                    width: brushSize * 3,
+                    height: brushSize * 3
+                  }}
+                />
+              )}
+              {currentTool === "text" && (
+                <div className="text-center">
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">T</div>
+                  <div
+                    className="w-1 h-4 mx-auto"
+                    style={{
+                      backgroundColor: currentColor
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

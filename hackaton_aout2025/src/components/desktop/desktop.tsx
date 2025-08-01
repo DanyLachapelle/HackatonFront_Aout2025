@@ -7,6 +7,7 @@ import type { FileItem } from "@/types/file-types"
 import type { DesktopApp } from "@/types/desktop-types"
 import { DesktopContextMenu } from "./desktop-context-menu"
 import { WallpaperSelector } from "./wallpaper-selector"
+import { fileService } from "@/services/file-service"
 
 export function Desktop() {
   const { files, loadFiles } = useFileStore()
@@ -184,10 +185,10 @@ export function Desktop() {
   }
 
   const handleIconPositionChange = (id: string, newPosition: { x: number; y: number }) => {
-    // Mettre à jour la position dans le store
-    const { updateIconPosition } = useDesktopStore.getState()
-    updateIconPosition(id, newPosition)
+    // TODO: Sauvegarder la position
   }
+
+
 
   const getWallpaperStyle = () => {
     if (wallpaper.type === "gradient") {
@@ -252,6 +253,8 @@ export function Desktop() {
 
       {/* Sélecteur de fond d'écran */}
       {showWallpaperSelector && <WallpaperSelector />}
+
+
     </div>
   )
 } 

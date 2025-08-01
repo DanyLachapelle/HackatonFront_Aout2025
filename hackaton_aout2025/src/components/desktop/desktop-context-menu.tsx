@@ -1,6 +1,9 @@
 import type React from "react"
 
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, useState } from "react"
+import { useFileStore } from "@/stores/file-store"
+import { useWindowStore } from "@/stores/window-store"
+import { fileService } from "@/services/file-service"
 
 interface DesktopContextMenuProps {
   x: number
@@ -11,6 +14,10 @@ interface DesktopContextMenuProps {
 
 export function DesktopContextMenu({ x, y, onClose, onPersonalize }: DesktopContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
+  const [showViewSubmenu, setShowViewSubmenu] = useState(false)
+  const [showNewSubmenu, setShowNewSubmenu] = useState(false)
+  const { openWindow } = useWindowStore()
+  const { refreshFiles } = useFileStore()
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -34,30 +41,83 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize }: DesktopCont
     }
   }, [onClose])
 
-  const handleAction = (action: string) => {
+  const handleAction = async (action: string) => {
     switch (action) {
       case "personalize":
         onPersonalize()
         break
       case "refresh":
-        window.location.reload()
+        await refreshFiles()
         break
       case "new-folder":
-        console.log("Nouveau dossier")
-        // TODO: Implémenter la création de dossier
+        await createNewFolder()
+        break
+      case "new-file":
+        await createNewFile()
         break
       case "paste":
         console.log("Coller")
-        // TODO: Implémenter le collage
+        // TODO: Implémenter le collage depuis le presse-papiers
         break
-      case "view":
-        console.log("Options d'affichage")
-        // TODO: Implémenter les options d'affichage
+      case "view-large":
+        console.log("Vue grandes icônes")
+        // TODO: Implémenter le changement de taille des icônes
+        break
+      case "view-medium":
+        console.log("Vue moyennes icônes")
+        // TODO: Implémenter le changement de taille des icônes
+        break
+      case "view-small":
+        console.log("Vue petites icônes")
+        // TODO: Implémenter le changement de taille des icônes
+        break
+      case "view-list":
+        console.log("Vue liste")
+        // TODO: Implémenter le changement de vue
         break
       default:
         break
     }
     onClose()
+  }
+
+  const createNewFolder = async () => {
+    try {
+      const folderName = prompt("Nom du nouveau dossier:")
+      if (!folderName || folderName.trim() === "") return
+
+      await fileService.createFolderWithObject({
+        name: folderName.trim(),
+        path: "/",
+        userId: 1
+      })
+      
+      // Rafraîchir la liste des fichiers
+      await refreshFiles()
+    } catch (error) {
+      console.error('Erreur lors de la création du dossier:', error)
+      alert("Erreur lors de la création du dossier")
+    }
+  }
+
+  const createNewFile = async () => {
+    try {
+      const fileName = prompt("Nom du nouveau fichier (avec extension):")
+      if (!fileName || fileName.trim() === "") return
+
+      await fileService.createFileWithObject({
+        name: fileName.trim(),
+        path: "/",
+        content: "",
+        userId: 1
+      })
+      
+      // Rafraîchir la liste des fichiers
+      await refreshFiles()
+    } catch (error) {
+      console.error('Erreur lors de la création du fichier:', error)
+      alert("Erreur lors de la création du fichier")
+    }
   }
 
   return (
@@ -69,13 +129,57 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize }: DesktopCont
         top: y,
       }}
     >
-      <button
-        onClick={() => handleAction("view")}
-        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-      >
-        <span className="mr-3">👁️</span>
-        Affichage
-      </button>
+      {/* Options d'affichage */}
+      <div className="relative">
+        <button
+          onMouseEnter={() => setShowViewSubmenu(true)}
+          onMouseLeave={() => setShowViewSubmenu(false)}
+          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
+        >
+          <div className="flex items-center">
+            <span className="mr-3">👁️</span>
+            Affichage
+          </div>
+          <span className="text-xs">▶</span>
+        </button>
+        
+        {showViewSubmenu && (
+          <div 
+            className="absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 min-w-40"
+            onMouseEnter={() => setShowViewSubmenu(true)}
+            onMouseLeave={() => setShowViewSubmenu(false)}
+          >
+            <button
+              onClick={() => handleAction("view-large")}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+            >
+              <span className="mr-3">🔍</span>
+              Grandes icônes
+            </button>
+            <button
+              onClick={() => handleAction("view-medium")}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+            >
+              <span className="mr-3">📱</span>
+              Moyennes icônes
+            </button>
+            <button
+              onClick={() => handleAction("view-small")}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+            >
+              <span className="mr-3">📱</span>
+              Petites icônes
+            </button>
+            <button
+              onClick={() => handleAction("view-list")}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+            >
+              <span className="mr-3">📋</span>
+              Liste
+            </button>
+          </div>
+        )}
+      </div>
       
       <button
         onClick={() => handleAction("refresh")}
@@ -87,13 +191,43 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize }: DesktopCont
 
       <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
 
-      <button
-        onClick={() => handleAction("new-folder")}
-        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-      >
-        <span className="mr-3">📁</span>
-        Nouveau dossier
-      </button>
+      {/* Nouveau */}
+      <div className="relative">
+        <button
+          onMouseEnter={() => setShowNewSubmenu(true)}
+          onMouseLeave={() => setShowNewSubmenu(false)}
+          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
+        >
+          <div className="flex items-center">
+            <span className="mr-3">➕</span>
+            Nouveau
+          </div>
+          <span className="text-xs">▶</span>
+        </button>
+        
+        {showNewSubmenu && (
+          <div 
+            className="absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 min-w-40"
+            onMouseEnter={() => setShowNewSubmenu(true)}
+            onMouseLeave={() => setShowNewSubmenu(false)}
+          >
+            <button
+              onClick={() => handleAction("new-folder")}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+            >
+              <span className="mr-3">📁</span>
+              Dossier
+            </button>
+            <button
+              onClick={() => handleAction("new-file")}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+            >
+              <span className="mr-3">📄</span>
+              Document texte
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
 

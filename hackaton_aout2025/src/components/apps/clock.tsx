@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useNotificationStore } from "@/stores/notification-store"
 
 export function Clock() {
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -12,8 +13,40 @@ export function Clock() {
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false)
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [timerInput, setTimerInput] = useState("")
+  const [timerName, setTimerName] = useState("Minuteur") // Nom du minuteur pour les notifications
+  const [isAppInBackground, setIsAppInBackground] = useState(false) // État de l'application
   const stopwatchRef = useRef<number | null>(null)
   const timerRef = useRef<number | null>(null)
+  
+  const { addNotification } = useNotificationStore()
+
+  // Détecter si l'application est en arrière-plan
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsAppInBackground(document.hidden)
+    }
+
+    const handleBlur = () => {
+      setIsAppInBackground(true)
+    }
+
+    const handleFocus = () => {
+      setIsAppInBackground(false)
+    }
+
+    // Écouter les changements de visibilité de la page
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    // Écouter les changements de focus de la fenêtre
+    window.addEventListener('blur', handleBlur)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('blur', handleBlur)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [])
 
   // Horloge en temps réel
   useEffect(() => {
@@ -52,6 +85,8 @@ export function Clock() {
             setIsTimerRunning(false)
             // Jouer un son d'alarme
             playAlarmSound()
+            // Envoyer une notification
+            sendTimerNotification()
             return 0
           }
           return prev - 1000
@@ -69,6 +104,22 @@ export function Clock() {
       }
     }
   }, [isTimerRunning, timerTime])
+
+  const sendTimerNotification = () => {
+    // Envoyer la notification seulement si l'application est en arrière-plan
+    if (isAppInBackground) {
+      const minutes = Math.floor(timerTime / 60000)
+      const seconds = Math.floor((timerTime % 60000) / 1000)
+      const duration = minutes > 0 ? `${minutes} minute${minutes > 1 ? 's' : ''}` : `${seconds} seconde${seconds > 1 ? 's' : ''}`
+      
+      addNotification({
+        title: `⏰ ${timerName} terminé`,
+        message: `Le minuteur de ${duration} est terminé !`,
+        type: 'info',
+        category: 'timer'
+      })
+    }
+  }
 
   const playAlarmSound = () => {
     // Créer un son d'alarme simple
@@ -105,11 +156,21 @@ export function Clock() {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
   }
 
-  const startStopwatch = () => setIsStopwatchRunning(true)
-  const stopStopwatch = () => setIsStopwatchRunning(false)
+  const startStopwatch = () => {
+    setIsStopwatchRunning(true)
+  }
+  
+  const stopStopwatch = () => {
+    if (isStopwatchRunning) {
+      setIsStopwatchRunning(false)
+    }
+  }
+  
   const resetStopwatch = () => {
-    setStopwatchTime(0)
-    setIsStopwatchRunning(false)
+    if (stopwatchTime > 0) {
+      setStopwatchTime(0)
+      setIsStopwatchRunning(false)
+    }
   }
 
   const startTimer = () => {
@@ -118,10 +179,17 @@ export function Clock() {
     }
   }
 
-  const stopTimer = () => setIsTimerRunning(false)
+  const stopTimer = () => {
+    if (isTimerRunning) {
+      setIsTimerRunning(false)
+    }
+  }
+  
   const resetTimer = () => {
-    setTimerTime(0)
-    setIsTimerRunning(false)
+    if (timerTime > 0) {
+      setTimerTime(0)
+      setIsTimerRunning(false)
+    }
   }
 
   const setTimer = () => {
@@ -229,20 +297,36 @@ export function Clock() {
               </div>
 
               {/* Configuration du minuteur */}
-              <div className="flex items-center space-x-2">
-                <Label htmlFor="timer-input">Minutes:</Label>
-                <Input
-                  id="timer-input"
-                  type="number"
-                  value={timerInput}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimerInput(e.target.value)}
-                  className="w-20"
-                  min="1"
-                  max="999"
-                />
-                <Button onClick={setTimer} disabled={!timerInput}>
-                  Définir
-                </Button>
+              <div className="space-y-3 w-full max-w-xs">
+                {/* Nom du minuteur */}
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="timer-name">Nom:</Label>
+                  <Input
+                    id="timer-name"
+                    type="text"
+                    value={timerName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimerName(e.target.value)}
+                    className="flex-1"
+                    placeholder="Nom du minuteur"
+                  />
+                </div>
+                
+                {/* Durée du minuteur */}
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="timer-input">Minutes:</Label>
+                  <Input
+                    id="timer-input"
+                    type="number"
+                    value={timerInput}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimerInput(e.target.value)}
+                    className="w-20"
+                    min="1"
+                    max="999"
+                  />
+                  <Button onClick={setTimer} disabled={!timerInput}>
+                    Définir
+                  </Button>
+                </div>
               </div>
 
               {/* Boutons de contrôle */}

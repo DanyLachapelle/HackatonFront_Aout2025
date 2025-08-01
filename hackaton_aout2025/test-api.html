@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Backend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #0056b3; }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test API Backend</h1>
+    
+    <div class="test-section">
+        <h3>Test de connexion</h3>
+        <button onclick="testConnection()">Tester la connexion</button>
+        <div id="connection-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test de création de dossier</h3>
+        <input type="text" id="folderName" placeholder="Nom du dossier" value="test-folder">
+        <button onclick="createFolder()">Créer un dossier</button>
+        <div id="create-folder-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test de liste des dossiers</h3>
+        <button onclick="listFolders()">Lister les dossiers</button>
+        <div id="list-folders-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test de liste des fichiers</h3>
+        <button onclick="listFiles()">Lister les fichiers</button>
+        <div id="list-files-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test de liste complète</h3>
+        <button onclick="listAll()">Lister tout</button>
+        <div id="list-all-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/v2';
+        const USER_ID = 1;
+        
+        function showResult(elementId, success, message, data = null) {
+            const element = document.getElementById(elementId);
+            element.className = `test-section ${success ? 'success' : 'error'}`;
+            element.innerHTML = `
+                <h4>${success ? '✅ Succès' : '❌ Erreur'}</h4>
+                <p>${message}</p>
+                ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+            `;
+        }
+        
+        async function testConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/files/folders?path=/&userId=${USER_ID}`);
+                if (response.ok) {
+                    showResult('connection-result', true, 'Connexion réussie au backend');
+                } else {
+                    showResult('connection-result', false, `Erreur HTTP: ${response.status}`);
+                }
+            } catch (error) {
+                showResult('connection-result', false, `Erreur de connexion: ${error.message}`);
+            }
+        }
+        
+        async function createFolder() {
+            const folderName = document.getElementById('folderName').value;
+            if (!folderName) {
+                showResult('create-folder-result', false, 'Veuillez entrer un nom de dossier');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/files/folders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        parentPath: '/',
+                        name: folderName,
+                        userId: USER_ID
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('create-folder-result', true, `Dossier "${folderName}" créé avec succès`, data);
+                } else {
+                    const errorText = await response.text();
+                    showResult('create-folder-result', false, `Erreur lors de la création: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                showResult('create-folder-result', false, `Erreur: ${error.message}`);
+            }
+        }
+        
+        async function listFolders() {
+            try {
+                const response = await fetch(`${API_BASE}/files/folders?path=/&userId=${USER_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('list-folders-result', true, `Dossiers trouvés: ${data.length}`, data);
+                } else {
+                    const errorText = await response.text();
+                    showResult('list-folders-result', false, `Erreur: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                showResult('list-folders-result', false, `Erreur: ${error.message}`);
+            }
+        }
+        
+        async function listFiles() {
+            try {
+                const response = await fetch(`${API_BASE}/files/files?path=/&userId=${USER_ID}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('list-files-result', true, `Fichiers trouvés: ${data.length}`, data);
+                } else {
+                    const errorText = await response.text();
+                    showResult('list-files-result', false, `Erreur: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                showResult('list-files-result', false, `Erreur: ${error.message}`);
+            }
+        }
+        
+        async function listAll() {
+            try {
+                // Simuler la méthode listAll du frontend
+                const [foldersResponse, filesResponse] = await Promise.all([
+                    fetch(`${API_BASE}/files/folders?path=/&userId=${USER_ID}`),
+                    fetch(`${API_BASE}/files/files?path=/&userId=${USER_ID}`)
+                ]);
+                
+                if (foldersResponse.ok && filesResponse.ok) {
+                    const folders = await foldersResponse.json();
+                    const files = await filesResponse.json();
+                    const all = [...folders, ...files].sort((a, b) => {
+                        if (a.type !== b.type) {
+                            return a.type === 'folder' ? -1 : 1;
+                        }
+                        return a.name.localeCompare(b.name);
+                    });
+                    showResult('list-all-result', true, `Total: ${all.length} éléments (${folders.length} dossiers, ${files.length} fichiers)`, all);
+                } else {
+                    showResult('list-all-result', false, `Erreur lors de la récupération des données`);
+                }
+            } catch (error) {
+                showResult('list-all-result', false, `Erreur: ${error.message}`);
+            }
+        }
+        
+        // Test automatique au chargement
+        window.onload = function() {
+            testConnection();
+        };
+    </script>
+</body>
+</html> 

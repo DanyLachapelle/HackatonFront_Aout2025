@@ -200,6 +200,22 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
       if (currentDocument.filePath) {
         await fileService.updateFileContent(currentDocument.filePath, currentDocument.content)
         console.log(`Fichier sauvegardé: ${currentDocument.filePath}`)
+      } else {
+        // Sinon, créer un nouveau fichier
+        const fileName = currentDocument.name.endsWith('.txt') ? currentDocument.name : `${currentDocument.name}.txt`
+        await fileService.createFile('/', fileName, currentDocument.content)
+        console.log(`Nouveau fichier créé: ${fileName}`)
+        
+        // Mettre à jour le document avec le nouveau chemin
+        const updatedDoc = { 
+          ...currentDocument, 
+          filePath: `/${fileName}`,
+          isModified: false, 
+          lastModified: new Date() 
+        }
+        setCurrentDocument(updatedDoc)
+        setDocuments(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc))
+        return
       }
       
       const updatedDoc = { ...currentDocument, isModified: false, lastModified: new Date() }
@@ -267,11 +283,11 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
   }
 
   return (
-    <div className={`flex h-full ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`flex h-full overflow-hidden ${theme === 'dark' ? 'dark' : ''}`}>
       {/* Barre latérale */}
       {showSidebar && (
-        <div className="w-64 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
-          <div className="p-4">
+        <div className="w-64 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+          <div className="p-4 flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold">Documents</h3>
               <Button
@@ -283,7 +299,7 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
               </Button>
             </div>
             
-            <div className="space-y-2 max-h-96 overflow-y-auto">
+            <div className="space-y-2 flex-1 overflow-y-auto">
               {documents.map((doc) => (
                 <div
                   key={doc.id}
@@ -322,9 +338,9 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
       )}
 
       {/* Zone principale */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Barre d'outils */}
-        <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-2">
+        <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-2 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Button
@@ -444,12 +460,18 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
           
           {/* Barre de recherche/remplacement */}
           {(showSearch || showReplace) && (
-            <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded border">
+            <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded border flex-shrink-0">
               <div className="flex items-center space-x-2">
                 <Input
                   placeholder="Rechercher..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      findText()
+                    }
+                  }}
                   className="flex-1"
                 />
                 <Button size="sm" onClick={findText}>
@@ -491,26 +513,27 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
         </div>
 
         {/* Zone de texte */}
-        <div className="flex-1 p-4">
+        <div className="flex-1 flex flex-col min-h-0">
           <Textarea
             ref={textareaRef}
             value={currentDocument.content}
             onChange={(e) => handleContentChange(e.target.value)}
-            className={`w-full h-full resize-none border-0 focus:ring-0 text-sm font-mono ${
+            className={`flex-1 resize-none border-0 focus:ring-0 text-sm font-mono p-4 ${
               theme === 'dark' 
                 ? 'bg-gray-900 text-gray-100' 
                 : 'bg-white text-gray-900'
             }`}
             style={{
               fontSize: `${zoom}%`,
-              lineHeight: '1.5'
+              lineHeight: '1.5',
+              height: '100%'
             }}
             placeholder="Commencez à écrire..."
           />
         </div>
 
         {/* Barre de statut */}
-        <div className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-4 py-2">
+        <div className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex-shrink-0">
           <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
             <span>
               {currentDocument.content.length} caractères

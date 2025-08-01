@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { fileService } from "@/services/file-service"
 import type { FileItem } from "@/types/file-types"
+import { config } from "@/config/environment"
 import { 
   GridIcon, 
   ListIcon, 
@@ -61,7 +62,7 @@ export function ImageGallery() {
         const extension = file.name.split('.').pop()?.toLowerCase()
         
         // Utiliser l'URL de téléchargement du backend pour les vraies images
-        const imageUrl = `/api/v2/files/download?path=${encodeURIComponent(file.path)}&userId=1`
+        const imageUrl = `${config.apiUrl}/download?path=${encodeURIComponent(file.path)}&userId=1`
         
         return {
           id: file.id,
@@ -208,7 +209,7 @@ export function ImageGallery() {
   }, [selectedImages, zoom, currentImageIndex])
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-gray-900">
       {/* En-tête */}
       <div className="p-4 bg-white dark:bg-gray-800 border-b">
         <div className="flex items-center justify-between mb-4">

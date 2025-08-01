@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Connexion Backend</title>
+</head>
+<body>
+    <h1>Test de Connexion au Backend</h1>
+    <button onclick="testConnection()">Tester la Connexion</button>
+    <div id="result"></div>
+
+    <script>
+        async function testConnection() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Test en cours...';
+            
+            try {
+                // Test 1: Endpoint de base
+                console.log('Test 1: Endpoint de base');
+                const response1 = await fetch('http://localhost:8080/api/v2/files/folders?path=/&userId=1');
+                console.log('Réponse 1:', response1.status, response1.statusText);
+                
+                if (response1.ok) {
+                    const data1 = await response1.json();
+                    console.log('Données 1:', data1);
+                    resultDiv.innerHTML = '<p style="color: green;">✅ Connexion réussie! Backend accessible.</p>';
+                } else {
+                    resultDiv.innerHTML = `<p style="color: red;">❌ Erreur HTTP: ${response1.status} ${response1.statusText}</p>`;
+                }
+                
+                // Test 2: Swagger
+                console.log('Test 2: Swagger');
+                const response2 = await fetch('http://localhost:8080/swagger-ui.html');
+                console.log('Réponse Swagger:', response2.status, response2.statusText);
+                
+            } catch (error) {
+                console.error('Erreur de connexion:', error);
+                resultDiv.innerHTML = `<p style="color: red;">❌ Erreur de connexion: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html> 

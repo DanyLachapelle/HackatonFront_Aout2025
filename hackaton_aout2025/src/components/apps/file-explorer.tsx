@@ -81,7 +81,10 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   const loadFiles = async (path: string) => {
     setLoading(true)
     try {
+      console.log(`Chargement des fichiers pour le chemin: ${path}`)
       const fileItems = await fileService.listAll(path)
+      console.log(`Fichiers récupérés:`, fileItems)
+      
       // Ajouter les propriétés manquantes pour la compatibilité
       const enhancedFiles = fileItems.map(file => ({
         ...file,
@@ -89,6 +92,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
         createdAt: new Date(file.createdAt),
         modifiedAt: new Date(file.modifiedAt)
       }))
+      console.log(`Fichiers enrichis:`, enhancedFiles)
       setFiles(enhancedFiles)
     } catch (error) {
       console.error('Erreur lors du chargement des fichiers:', error)
@@ -97,188 +101,10 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       setLoading(false)
     }
   }
-      },
-      {
-        id: "2",
-        name: "Images",
-        type: "folder",
-        size: 0,
-        createdAt: new Date("2024-01-02"),
-        modifiedAt: new Date("2024-01-20"),
-        path: "/Images",
-        isSelected: false,
-        isFavorite: false
-      },
-      {
-        id: "3",
-        name: "Téléchargements",
-        type: "folder",
-        size: 0,
-        createdAt: new Date("2024-01-03"),
-        modifiedAt: new Date("2024-01-25"),
-        path: "/Téléchargements",
-        isSelected: false,
-        isFavorite: false
-      },
-
-      {
-        id: "5",
-        name: "config.json",
-        type: "file",
-        size: 512,
-        createdAt: new Date("2024-01-05"),
-        modifiedAt: new Date("2024-01-12"),
-        path: "/config.json",
-        extension: "json",
-        isSelected: false,
-        isFavorite: false
-      }
-    ],
-    "/Documents": [
-      {
-        id: "6",
-        name: "rapport.pdf",
-        type: "file",
-        size: 1048576,
-        createdAt: new Date("2024-01-15"),
-        modifiedAt: new Date("2024-01-15"),
-        path: "/Documents/rapport.pdf",
-        extension: "pdf",
-        isSelected: false,
-        isFavorite: false
-      },
-      {
-        id: "7",
-        name: "notes.txt",
-        type: "file",
-        size: 1024,
-        createdAt: new Date("2024-01-16"),
-        modifiedAt: new Date("2024-01-16"),
-        path: "/Documents/notes.txt",
-        extension: "txt",
-        isSelected: false,
-        isFavorite: false
-      },
-      {
-        id: "8",
-        name: "Projets",
-        type: "folder",
-        size: 0,
-        createdAt: new Date("2024-01-17"),
-        modifiedAt: new Date("2024-01-17"),
-        path: "/Documents/Projets",
-        isSelected: false,
-        isFavorite: false
-      }
-    ],
-    "/Images": [
-      {
-        id: "9",
-        name: "photo1.jpg",
-        type: "file",
-        size: 2097152,
-        createdAt: new Date("2024-01-20"),
-        modifiedAt: new Date("2024-01-20"),
-        path: "/Images/photo1.jpg",
-        extension: "jpg",
-        isSelected: false,
-        isFavorite: false
-      },
-      {
-        id: "10",
-        name: "screenshot.png",
-        type: "file",
-        size: 524288,
-        createdAt: new Date("2024-01-21"),
-        modifiedAt: new Date("2024-01-21"),
-        path: "/Images/screenshot.png",
-        extension: "png",
-        isSelected: false,
-        isFavorite: false
-      },
-      {
-        id: "15",
-        name: "photo2.jpg",
-        type: "file",
-        size: 2097152,
-        createdAt: new Date("2024-01-20"),
-        modifiedAt: new Date("2024-01-20"),
-        path: "/Images/photo2.jpg",
-        extension: "jpg",
-        isSelected: false,
-        isFavorite: false
-      },
-      {
-        id: "16",
-        name: "photo3.jpg",
-        type: "file",
-        size: 1572864,
-        createdAt: new Date("2024-01-20"),
-        modifiedAt: new Date("2024-01-20"),
-        path: "/Images/photo3.jpg",
-        extension: "jpg",
-        isSelected: false,
-        isFavorite: false
-      }
-    ],
-    "/Téléchargements": [
-      {
-        id: "11",
-        name: "document.zip",
-        type: "file",
-        size: 15728640,
-        createdAt: new Date("2024-01-25"),
-        modifiedAt: new Date("2024-01-25"),
-        path: "/Téléchargements/document.zip",
-        extension: "zip",
-        isSelected: false,
-        isFavorite: false
-      }
-    ],
-    "/Documents/Projets": [
-      {
-        id: "12",
-        name: "projet1.html",
-        type: "file",
-        size: 4096,
-        createdAt: new Date("2024-01-17"),
-        modifiedAt: new Date("2024-01-17"),
-        path: "/Documents/Projets/projet1.html",
-        extension: "html",
-        isSelected: false,
-        isFavorite: false
-      },
-      {
-        id: "13",
-        name: "style.css",
-        type: "file",
-        size: 2048,
-        createdAt: new Date("2024-01-17"),
-        modifiedAt: new Date("2024-01-17"),
-        path: "/Documents/Projets/style.css",
-        extension: "css",
-        isSelected: false,
-        isFavorite: false
-      },
-      {
-        id: "14",
-        name: "script.js",
-        type: "file",
-        size: 3072,
-        createdAt: new Date("2024-01-17"),
-        modifiedAt: new Date("2024-01-17"),
-        path: "/Documents/Projets/script.js",
-        extension: "js",
-        isSelected: false,
-        isFavorite: false
-      }
-    ]
-  }
 
   // Charger les fichiers du dossier actuel
   useEffect(() => {
-    const currentFiles = mockFileSystem[currentPath] || []
-    setFiles(currentFiles.map(file => ({ ...file, isSelected: false })))
+    loadFiles(currentPath)
     setSelectedFiles([])
   }, [currentPath])
 
@@ -588,30 +414,38 @@ Cette archive a été créée depuis l'explorateur de fichiers de l'application 
 
   const refreshCurrentFolder = () => {
     // Recharger les fichiers du dossier actuel
-    const currentFiles = mockFileSystem[currentPath] || []
-    setFiles(currentFiles.map(file => ({ ...file, isSelected: false })))
+    loadFiles(currentPath)
     setSelectedFiles([])
   }
 
-  const createNewItem = () => {
+  const createNewItem = async () => {
     if (!newItemName.trim()) return
     
-    const newItem: FileItem = {
-      id: Date.now().toString(),
-      name: newItemName,
-      type: createType,
-      size: 0,
-      createdAt: new Date(),
-      modifiedAt: new Date(),
-      path: `${currentPath}/${newItemName}`,
-      extension: createType === "file" ? "txt" : undefined,
-      isSelected: false,
-      isFavorite: false
+    try {
+      console.log(`Création d'un ${createType} nommé "${newItemName}" dans le chemin "${currentPath}"`)
+      
+      if (createType === "folder") {
+        await fileService.createFolder(currentPath, newItemName)
+        console.log('Dossier créé avec succès côté backend')
+      } else {
+        await fileService.createFile(currentPath, newItemName, "")
+        console.log('Fichier créé avec succès côté backend')
+      }
+      
+      // Attendre un peu pour s'assurer que le backend a terminé
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Recharger les fichiers pour afficher le nouvel élément
+      console.log('Rechargement des fichiers...')
+      await loadFiles(currentPath)
+      console.log('Fichiers rechargés avec succès')
+      
+      setNewItemName("")
+      setShowCreateDialog(false)
+    } catch (error) {
+      console.error('Erreur lors de la création:', error)
+      alert(`Erreur lors de la création du ${createType === "folder" ? "dossier" : "fichier"}: ${error}`)
     }
-    
-    setFiles(prev => [...prev, newItem])
-    setNewItemName("")
-    setShowCreateDialog(false)
   }
 
   const showItemDetails = (file: FileItem) => {
@@ -1310,7 +1144,7 @@ Vous pouvez toujours :
                 >
                   Annuler
                 </Button>
-                <Button onClick={createNewItem}>
+                <Button onClick={() => createNewItem()}>
                   Créer
                 </Button>
               </div>

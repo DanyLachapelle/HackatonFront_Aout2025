@@ -5,6 +5,7 @@ import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { fileService } from "@/services/file-service"
 import type { FileItem } from "@/types/file-types"
+import { config } from "@/config/environment"
 
 import { 
   PlayIcon, 
@@ -81,7 +82,7 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
           artist: "Artiste inconnu",
           album: "Album inconnu",
           duration: Math.floor(Math.random() * 300) + 120, // Durée aléatoire entre 2-7 minutes
-          url: `/api/v2/files/download?path=${encodeURIComponent(file.path)}&userId=1`, // URL du backend
+          url: `${config.apiUrl}/download?path=${encodeURIComponent(file.path)}&userId=1`, // URL complète du backend
           cover: `https://via.placeholder.com/150/1f2937/ffffff?text=${encodeURIComponent(fileName)}`,
           isLiked: Math.random() > 0.7, // 30% de chance d'être aimé
           filePath: file.path,
@@ -242,11 +243,11 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
   )
 
   return (
-    <div className="flex h-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="flex h-full overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Panneau principal */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* En-tête */}
-        <div className="p-6 text-white border-b border-white/10">
+        <div className="p-6 text-white border-b border-white/10 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold flex items-center gap-3">
               <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
@@ -302,7 +303,7 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
         </div>
 
         {/* Zone principale */}
-        <div className="flex-1 flex items-center justify-center p-6">
+        <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
           <Card className="w-full max-w-2xl bg-white/5 backdrop-blur-sm border-white/10 shadow-2xl">
             <CardContent className="p-8 text-white">
               {/* Pochette d'album */}

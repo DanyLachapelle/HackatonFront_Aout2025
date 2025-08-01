@@ -15,125 +15,8 @@ interface SearchResult {
   action: () => void
 }
 
-// Données d'exemple pour simuler un système de fichiers complet
-const mockFileSystem: Record<string, any[]> = {
-  "/": [
-    {
-      id: "1",
-      name: "Documents",
-      type: "folder",
-      path: "/Documents",
-    },
-    {
-      id: "2",
-      name: "Images",
-      type: "folder",
-      path: "/Images",
-    },
-    {
-      id: "3",
-      name: "Musique",
-      type: "folder",
-      path: "/Musique",
-    },
-    {
-      id: "4",
-      name: "photo.jpg",
-      type: "file",
-      path: "/photo.jpg",
-    },
-    {
-      id: "5",
-      name: "rapport.txt",
-      type: "file",
-      path: "/rapport.txt",
-    },
-  ],
-  "/Documents": [
-    {
-      id: "6",
-      name: "Travail",
-      type: "folder",
-      path: "/Documents/Travail",
-    },
-    {
-      id: "7",
-      name: "Personnel",
-      type: "folder",
-      path: "/Documents/Personnel",
-    },
-    {
-      id: "8",
-      name: "projet.docx",
-      type: "file",
-      path: "/Documents/projet.docx",
-    },
-    {
-      id: "9",
-      name: "notes.txt",
-      type: "file",
-      path: "/Documents/notes.txt",
-    },
-  ],
-  "/Images": [
-    {
-      id: "10",
-      name: "vacances.jpg",
-      type: "file",
-      path: "/Images/vacances.jpg",
-    },
-    {
-      id: "11",
-      name: "screenshot.png",
-      type: "file",
-      path: "/Images/screenshot.png",
-    },
-  ],
-  "/Musique": [
-    {
-      id: "12",
-      name: "Playlist 1",
-      type: "folder",
-      path: "/Musique/Playlist 1",
-    },
-    {
-      id: "13",
-      name: "chanson.mp3",
-      type: "file",
-      path: "/Musique/chanson.mp3",
-    },
-  ],
-  "/Documents/Travail": [
-    {
-      id: "14",
-      name: "presentation.pptx",
-      type: "file",
-      path: "/Documents/Travail/presentation.pptx",
-    },
-  ],
-  "/Documents/Personnel": [
-    {
-      id: "15",
-      name: "budget.xlsx",
-      type: "file",
-      path: "/Documents/Personnel/budget.xlsx",
-    },
-  ],
-  "/Musique/Playlist 1": [
-    {
-      id: "16",
-      name: "titre1.mp3",
-      type: "file",
-      path: "/Musique/Playlist 1/titre1.mp3",
-    },
-    {
-      id: "17",
-      name: "titre2.mp3",
-      type: "file",
-      path: "/Musique/Playlist 1/titre2.mp3",
-    },
-  ],
-}
+// Service pour interagir avec le backend
+import { fileService } from "@/services/file-service"
 
 export function SearchBar() {
   const [query, setQuery] = useState("")
@@ -216,78 +99,100 @@ export function SearchBar() {
   ]
 
   // Fonction pour rechercher dans tous les fichiers et dossiers
-  const searchInFileSystem = (searchQuery: string): SearchResult[] => {
+  const searchInFileSystem = async (searchQuery: string): Promise<SearchResult[]> => {
     const results: SearchResult[] = []
     const query = searchQuery.toLowerCase()
 
-    // Parcourir tous les dossiers du système de fichiers
-    Object.keys(mockFileSystem).forEach((folderPath) => {
-      mockFileSystem[folderPath].forEach((item) => {
-        if (item.name.toLowerCase().includes(query)) {
-          results.push({
-            id: item.id,
-            name: item.name,
-            type: item.type === "folder" ? "Dossier" : "Fichier",
-            icon: item.type === "folder" ? "📁" : getFileIcon(item.name),
-            path: item.path,
-            action: () => {
-              if (item.type === "folder") {
-                // Ouvrir l'explorateur de fichiers dans ce dossier
-                openWindow({
-                  id: `explorer-${item.id}`,
-                  title: `Explorateur - ${item.name}`,
-                  type: "file-explorer",
-                  initialPath: item.path,
-                  position: { x: 100, y: 100 },
-                  size: { width: 800, height: 600 },
-                  isMinimized: false,
-                  isMaximized: false,
-                  zIndex: 1000,
-                })
-              } else {
-                // Ouvrir le fichier avec l'application appropriée
-                const extension = item.name.split('.').pop()?.toLowerCase()
-                const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension || '')
-                const isTextFile = !isImage && extension !== 'mp3' && extension !== 'wav' && extension !== 'flac'
-                
-                if (isTextFile) {
-                  // Ouvrir les fichiers texte dans l'éditeur
-                  openWindow({
-                    id: `editor-${item.id}`,
-                    title: `${item.name} - Éditeur de texte`,
-                    type: "text-editor",
-                    filePath: item.path,
-                    position: { x: 150, y: 150 },
-                    size: { width: 800, height: 600 },
-                    isMinimized: false,
-                    isMaximized: false,
-                    zIndex: 1000,
-                  })
-                } else if (isImage) {
-                  // Ouvrir les images dans le visionneur
-                  openWindow({
-                    id: `viewer-${item.id}`,
-                    title: item.name,
-                    type: "file-viewer",
-                    filePath: item.path,
-                    position: { x: 150, y: 150 },
-                    size: { width: 600, height: 400 },
-                    isMinimized: false,
-                    isMaximized: false,
-                    zIndex: 1000,
-                  })
-                } else {
-                  // Pour les autres types de fichiers, afficher un message
-                  alert(`Ce type de fichier (.${extension}) n'est pas encore supporté pour l'édition.`)
-                }
-              }
-              setQuery("")
-              setIsOpen(false)
-            },
-          })
-        }
+    try {
+      console.log('🔍 Recherche en cours pour:', query)
+      
+      // Rechercher les fichiers
+      const files = await fileService.searchFiles(query)
+      console.log('📄 Fichiers trouvés:', files.length, files.map(f => f.name))
+      
+      files.forEach((file) => {
+        results.push({
+          id: file.id.toString(),
+          name: file.name,
+          type: "Fichier",
+          icon: getFileIcon(file.name),
+          path: file.path,
+          action: () => {
+            // Ouvrir le fichier avec l'application appropriée
+            const extension = file.name.split('.').pop()?.toLowerCase();
+            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension || '');
+            const isTextFile = !isImage && extension !== 'mp3' && extension !== 'wav' && extension !== 'flac';
+            
+            if (isTextFile) {
+              // Ouvrir les fichiers texte dans l'éditeur
+              openWindow({
+                id: `editor-${file.id}`,
+                title: `${file.name} - Éditeur de texte`,
+                type: "text-editor",
+                filePath: file.path,
+                position: { x: 150, y: 150 },
+                size: { width: 800, height: 600 },
+                isMinimized: false,
+                isMaximized: false,
+                zIndex: 1000,
+              })
+            } else if (isImage) {
+              // Ouvrir les images dans le visionneur
+              openWindow({
+                id: `viewer-${file.id}`,
+                title: file.name,
+                type: "file-viewer",
+                filePath: file.path,
+                position: { x: 150, y: 150 },
+                size: { width: 600, height: 400 },
+                isMinimized: false,
+                isMaximized: false,
+                zIndex: 1000,
+              })
+            } else {
+              // Pour les autres types de fichiers, afficher un message
+              alert(`Ce type de fichier (.${extension}) n'est pas encore supporté pour l'édition.`)
+            }
+            setQuery("")
+            setIsOpen(false)
+          }
+        })
       })
-    })
+
+      // Rechercher les dossiers
+      const folders = await fileService.searchFolders(query)
+      console.log('📁 Dossiers trouvés:', folders.length, folders.map(f => f.name))
+      
+      folders.forEach((folder) => {
+        results.push({
+          id: folder.id.toString(),
+          name: folder.name,
+          type: "Dossier",
+          icon: "📁",
+          path: folder.path,
+          action: () => {
+            // Ouvrir l'explorateur de fichiers dans ce dossier
+            openWindow({
+              id: `explorer-${folder.id}`,
+              title: `Explorateur - ${folder.name}`,
+              type: "file-explorer",
+              initialPath: folder.path,
+              position: { x: 100, y: 100 },
+              size: { width: 800, height: 600 },
+              isMinimized: false,
+              isMaximized: false,
+              zIndex: 1000,
+            })
+            setQuery("")
+            setIsOpen(false)
+          }
+        })
+      })
+      
+      console.log('🎯 Total des résultats:', results.length)
+    } catch (error) {
+      console.error('Erreur lors de la recherche:', error)
+    }
 
     return results
   }
@@ -332,59 +237,63 @@ export function SearchBar() {
   }
 
   useEffect(() => {
-    if (query.length > 0) {
-      // Rechercher dans les applications
-      const appResults = searchableApps
-        .filter(
-          (app) =>
-            app.keywords.some((keyword) => keyword.toLowerCase().includes(query.toLowerCase())) ||
-            app.name.toLowerCase().includes(query.toLowerCase()),
-        )
-        .map((app) => ({
-          id: app.id,
-          name: app.name,
-          type: app.type,
-          icon: app.icon,
-          action: () => {
-            const appSizes = {
-              calculator: { width: 320, height: 480 },
-              "text-editor": { width: 800, height: 600 },
-              "file-explorer": { width: 800, height: 600 },
-              terminal: { width: 700, height: 500 },
-              settings: { width: 900, height: 700 },
-              paint: { width: 800, height: 600 },
-              "image-gallery": { width: 800, height: 600 },
-              calendar: { width: 800, height: 650 },
-              clock: { width: 600, height: 550 },
-              "music-player": { width: 500, height: 400 },
-            }
+    const performSearch = async () => {
+      if (query.length > 0) {
+        // Rechercher dans les applications
+        const appResults = searchableApps
+          .filter(
+            (app) =>
+              app.keywords.some((keyword) => keyword.toLowerCase().includes(query.toLowerCase())) ||
+              app.name.toLowerCase().includes(query.toLowerCase()),
+          )
+          .map((app) => ({
+            id: app.id,
+            name: app.name,
+            type: app.type,
+            icon: app.icon,
+            action: () => {
+              const appSizes = {
+                calculator: { width: 320, height: 480 },
+                "text-editor": { width: 800, height: 600 },
+                "file-explorer": { width: 800, height: 600 },
+                terminal: { width: 700, height: 500 },
+                settings: { width: 900, height: 700 },
+                paint: { width: 800, height: 600 },
+                "image-gallery": { width: 800, height: 600 },
+                calendar: { width: 800, height: 650 },
+                clock: { width: 600, height: 550 },
+                "music-player": { width: 500, height: 400 },
+              }
 
-            openWindow({
-              id: `${app.id}-${Date.now()}`,
-              title: app.name,
-              type: app.id as any,
-              position: { x: 100, y: 100 },
-              size: appSizes[app.id as keyof typeof appSizes] || { width: 600, height: 400 },
-              isMinimized: false,
-              isMaximized: false,
-              zIndex: 1000,
-            })
-            setQuery("")
-            setIsOpen(false)
-          },
-        }))
+              openWindow({
+                id: `${app.id}-${Date.now()}`,
+                title: app.name,
+                type: app.id as any,
+                position: { x: 100, y: 100 },
+                size: appSizes[app.id as keyof typeof appSizes] || { width: 600, height: 400 },
+                isMinimized: false,
+                isMaximized: false,
+                zIndex: 1000,
+              })
+              setQuery("")
+              setIsOpen(false)
+            },
+          }))
 
-      // Rechercher dans les fichiers et dossiers
-      const fileResults = searchInFileSystem(query)
+        // Rechercher dans les fichiers et dossiers
+        const fileResults = await searchInFileSystem(query)
 
-      // Combiner et limiter les résultats
-      const allResults = [...appResults, ...fileResults].slice(0, 10)
-      setResults(allResults)
-      setIsOpen(allResults.length > 0)
-    } else {
-      setResults([])
-      setIsOpen(false)
+        // Combiner et limiter les résultats
+        const allResults = [...appResults, ...fileResults].slice(0, 10)
+        setResults(allResults)
+        setIsOpen(allResults.length > 0)
+      } else {
+        setResults([])
+        setIsOpen(false)
+      }
     }
+
+    performSearch()
   }, [query, openWindow])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
