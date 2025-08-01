@@ -69,10 +69,17 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
   const loadMusicFiles = async () => {
     try {
       setIsLoading(true)
-      const musicFiles = await fileService.findMusicFiles()
+      // Charger les fichiers depuis le dossier système Musique
+      const musicFiles = await fileService.listFiles('/musique')
+      
+      // Filtrer pour ne garder que les fichiers audio
+      const audioFiles = musicFiles.filter(file => 
+        file.contentType?.startsWith('audio/') || 
+        ['mp3', 'wav', 'flac', 'ogg', 'm4a'].includes(file.name.split('.').pop()?.toLowerCase() || '')
+      )
       
       // Convertir les FileItem en Song
-      const songs: Song[] = musicFiles.map((file, index) => {
+      const songs: Song[] = audioFiles.map((file, index) => {
         const fileName = file.name.replace(/\.[^/.]+$/, "") // Enlever l'extension
         const extension = file.name.split('.').pop()?.toLowerCase()
         
@@ -91,7 +98,7 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
       })
       
       setPlaylist(songs)
-      console.log(`Chargé ${songs.length} fichiers musicaux depuis l'arborescence`)
+      console.log(`Chargé ${songs.length} fichiers musicaux depuis le dossier Musique`)
     } catch (error) {
       console.error("Erreur lors du chargement des fichiers musicaux:", error)
       // Fallback vers la playlist d'exemple si erreur

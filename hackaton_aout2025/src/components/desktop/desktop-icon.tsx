@@ -2,16 +2,18 @@ import { useState, useRef, useEffect } from "react"
 import type { FileItem } from "@/types/file-types"
 import type { DesktopApp } from "@/types/desktop-types"
 import { cn } from "@/lib/utils"
+import { getFileItemIconEmoji } from "@/lib/file-icons"
 
 interface DesktopIconProps {
   item: FileItem | DesktopApp
   position: { x: number; y: number }
   onDoubleClick: () => void
+  onContextMenu: (e: React.MouseEvent, item: FileItem | DesktopApp) => void
   onPositionChange: (id: string, newPosition: { x: number; y: number }) => void
   tooltip?: string
 }
 
-export function DesktopIcon({ item, position, onDoubleClick, onPositionChange, tooltip }: DesktopIconProps) {
+export function DesktopIcon({ item, position, onDoubleClick, onContextMenu, onPositionChange, tooltip }: DesktopIconProps) {
   const [isSelected, setIsSelected] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
@@ -29,7 +31,7 @@ export function DesktopIcon({ item, position, onDoubleClick, onPositionChange, t
       return item.icon
     } else {
       // C'est un FileItem
-      return item.type === "folder" ? "📁" : "📄"
+      return getFileItemIconEmoji(item)
     }
   }
 
@@ -107,6 +109,7 @@ export function DesktopIcon({ item, position, onDoubleClick, onPositionChange, t
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={onDoubleClick}
+      onContextMenu={(e) => onContextMenu(e, item)}
       onClick={(e) => {
         if (!isDragging) {
           setIsSelected(!isSelected)

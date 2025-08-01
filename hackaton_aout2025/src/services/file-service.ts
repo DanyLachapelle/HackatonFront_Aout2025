@@ -105,10 +105,17 @@ class FileService {
 
   async listFiles(path: string): Promise<FileItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/files?path=${encodeURIComponent(path)}&userId=${this.userId}`)
+      console.log('📄 listFiles appelé pour le chemin:', path)
+      const url = `${this.baseUrl}/files/files?path=${encodeURIComponent(path)}&userId=${this.userId}`
+      console.log('🌐 URL de la requête:', url)
+      const response = await fetch(url)
+      console.log('📡 Réponse HTTP:', response.status, response.statusText)
       if (!response.ok) throw new Error('Erreur lors du chargement des fichiers')
       const files: FileDto[] = await response.json()
-      return files.map(file => this.fileDtoToFileItem(file))
+      console.log('📄 Données brutes reçues:', files)
+      const result = files.map(file => this.fileDtoToFileItem(file))
+      console.log('📄 Fichiers convertis:', result)
+      return result
     } catch (error) {
       console.error('Erreur lors du chargement des fichiers:', error)
       return []
@@ -117,10 +124,17 @@ class FileService {
 
   async listFolders(path: string): Promise<FileItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/folders?path=${encodeURIComponent(path)}&userId=${this.userId}`)
+      console.log('📁 listFolders appelé pour le chemin:', path)
+      const url = `${this.baseUrl}/files/folders?path=${encodeURIComponent(path)}&userId=${this.userId}`
+      console.log('🌐 URL de la requête:', url)
+      const response = await fetch(url)
+      console.log('📡 Réponse HTTP:', response.status, response.statusText)
       if (!response.ok) throw new Error('Erreur lors du chargement des dossiers')
       const folders: FolderDto[] = await response.json()
-      return folders.map(folder => this.folderDtoToFileItem(folder))
+      console.log('📁 Données brutes reçues:', folders)
+      const result = folders.map(folder => this.folderDtoToFileItem(folder))
+      console.log('📁 Dossiers convertis:', result)
+      return result
     } catch (error) {
       console.error('Erreur lors du chargement des dossiers:', error)
       return []
@@ -129,17 +143,22 @@ class FileService {
 
   async listAll(path: string): Promise<FileItem[]> {
     try {
+      console.log('🔍 listAll appelé pour le chemin:', path)
       const [files, folders] = await Promise.all([
         this.listFiles(path),
         this.listFolders(path)
       ])
-      return [...folders, ...files].sort((a, b) => {
+      console.log('📄 Fichiers récupérés:', files)
+      console.log('📁 Dossiers récupérés:', folders)
+      const result = [...folders, ...files].sort((a, b) => {
         // Dossiers en premier, puis par nom
         if (a.type !== b.type) {
           return a.type === 'folder' ? -1 : 1
         }
         return a.name.localeCompare(b.name)
       })
+      console.log('✅ Résultat final listAll:', result)
+      return result
     } catch (error) {
       console.error('Erreur lors du chargement des éléments:', error)
       return []
@@ -301,6 +320,62 @@ class FileService {
       if (!response.ok) throw new Error('Erreur lors de la suppression')
     } catch (error) {
       console.error('Erreur lors de la suppression:', error)
+      throw error
+    }
+  }
+
+  async deleteFileById(id: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/files/${id}?userId=${this.userId}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) throw new Error('Erreur lors de la suppression du fichier')
+    } catch (error) {
+      console.error('Erreur lors de la suppression du fichier:', error)
+      throw error
+    }
+  }
+
+  async deleteFolder(id: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/folders/${id}?userId=${this.userId}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) throw new Error('Erreur lors de la suppression du dossier')
+    } catch (error) {
+      console.error('Erreur lors de la suppression du dossier:', error)
+      throw error
+    }
+  }
+
+  async renameFile(id: string, newName: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/files/${id}/rename`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ newName, userId: this.userId })
+      })
+      if (!response.ok) throw new Error('Erreur lors du renommage du fichier')
+    } catch (error) {
+      console.error('Erreur lors du renommage du fichier:', error)
+      throw error
+    }
+  }
+
+  async renameFolder(id: string, newName: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/folders/${id}/rename`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ newName, userId: this.userId })
+      })
+      if (!response.ok) throw new Error('Erreur lors du renommage du dossier')
+    } catch (error) {
+      console.error('Erreur lors du renommage du dossier:', error)
       throw error
     }
   }

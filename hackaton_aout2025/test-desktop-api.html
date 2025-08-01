@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Bureau</title>
+</head>
+<body>
+    <h1>Test API Bureau</h1>
+    <button onclick="testDesktopAPI()">Tester l'API Bureau</button>
+    <div id="results"></div>
+
+    <script>
+        async function testDesktopAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Test en cours...</p>';
+
+            try {
+                // Test des dossiers
+                console.log('🔍 Test des dossiers...');
+                const foldersResponse = await fetch('http://localhost:8080/api/v2/files/folders?path=/bureau&userId=1');
+                console.log('📁 Réponse dossiers:', foldersResponse.status);
+                const folders = await foldersResponse.json();
+                console.log('📁 Dossiers:', folders);
+
+                // Test des fichiers
+                console.log('🔍 Test des fichiers...');
+                const filesResponse = await fetch('http://localhost:8080/api/v2/files/files?path=/bureau&userId=1');
+                console.log('📄 Réponse fichiers:', filesResponse.status);
+                const files = await filesResponse.json();
+                console.log('📄 Fichiers:', files);
+
+                // Affichage des résultats
+                resultsDiv.innerHTML = `
+                    <h2>Résultats du test</h2>
+                    <h3>Dossiers (${folders.length})</h3>
+                    <pre>${JSON.stringify(folders, null, 2)}</pre>
+                    <h3>Fichiers (${files.length})</h3>
+                    <pre>${JSON.stringify(files, null, 2)}</pre>
+                `;
+
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                resultsDiv.innerHTML = `<p style="color: red;">Erreur: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html> 

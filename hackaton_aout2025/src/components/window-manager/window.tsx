@@ -29,43 +29,77 @@ function FileViewerWindow({ filePath, windowId }: { filePath?: string; windowId:
     size?: number
     lastModified?: Date
   } | null>(null)
+  const [loading, setLoading] = useState(true)
   const { closeWindow } = useWindowStore()
 
   useEffect(() => {
-    if (filePath) {
-      // Simuler le chargement du fichier
-      const fileName = filePath.split('/').pop() || 'fichier'
-      const extension = fileName.split('.').pop()?.toLowerCase()
-      
-      let fileType: 'text' | 'image' | 'folder' = 'text'
-      let content = ''
-      let url = ''
-      
-      if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif') {
-        fileType = 'image'
-        url = `https://picsum.photos/800/600?random=${Math.floor(Math.random() * 1000)}`
-      } else if (extension === 'txt' || extension === 'md' || extension === 'json' || extension === 'js' || extension === 'ts' || extension === 'html' || extension === 'css') {
-        fileType = 'text'
-        content = `Contenu du fichier ${fileName}\n\nCeci est un exemple de contenu pour le fichier ${fileName}.\nVous pouvez modifier ce texte et l'enregistrer.\n\nLigne 1: Exemple de contenu\nLigne 2: Autre exemple\nLigne 3: Encore un exemple`
+    const loadFile = async () => {
+      if (filePath) {
+        setLoading(true)
+        try {
+          const fileName = filePath.split('/').pop() || 'fichier'
+          const extension = fileName.split('.').pop()?.toLowerCase()
+          
+          let fileType: 'text' | 'image' | 'folder' = 'text'
+          let content = ''
+          let url = ''
+          
+          if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif' || extension === 'webp' || extension === 'bmp') {
+            fileType = 'image'
+            // Utiliser l'API backend pour récupérer l'URL de l'image avec inline=true pour l'affichage
+            url = `http://localhost:8080/api/v2/files/download?path=${encodeURIComponent(filePath)}&userId=1&inline=true`
+          } else if (extension === 'txt' || extension === 'md' || extension === 'json' || extension === 'js' || extension === 'ts' || extension === 'html' || extension === 'css') {
+            fileType = 'text'
+            // Charger le contenu du fichier depuis le backend
+            try {
+              const response = await fetch(`http://localhost:8080/api/v2/files/files/content?path=${encodeURIComponent(filePath)}&userId=1`)
+              if (response.ok) {
+                content = await response.text()
+              } else {
+                content = `Erreur lors du chargement du fichier ${fileName}`
+              }
+            } catch (error) {
+              content = `Erreur lors du chargement du fichier ${fileName}: ${error}`
+            }
+          }
+          
+          setFile({
+            name: fileName,
+            type: fileType,
+            content,
+            url,
+            size: 0, // TODO: Récupérer la vraie taille depuis le backend
+            lastModified: new Date() // TODO: Récupérer la vraie date depuis le backend
+          })
+        } catch (error) {
+          console.error('Erreur lors du chargement du fichier:', error)
+          setFile({
+            name: 'Erreur',
+            type: 'text',
+            content: `Erreur lors du chargement du fichier: ${error}`,
+            size: 0,
+            lastModified: new Date()
+          })
+        } finally {
+          setLoading(false)
+        }
       }
-      
-      setFile({
-        name: fileName,
-        type: fileType,
-        content,
-        url,
-        size: Math.floor(Math.random() * 1000000) + 1000,
-        lastModified: new Date()
-      })
     }
+
+    loadFile()
   }, [filePath])
 
-  if (!file) {
+  if (loading || !file) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="text-6xl mb-4">📄</div>
           <p className="text-gray-600">Chargement du fichier...</p>
+          {loading && (
+            <div className="mt-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            </div>
+          )}
         </div>
       </div>
     )

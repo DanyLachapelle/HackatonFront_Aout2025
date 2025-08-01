@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test FileService</title>
+</head>
+<body>
+    <h1>Test FileService.listAll</h1>
+    <button onclick="testFileService()">Tester FileService.listAll</button>
+    <div id="results"></div>
+
+    <script>
+        // Simulation du FileService
+        class TestFileService {
+            constructor() {
+                this.baseUrl = "http://localhost:8080/api/v2";
+                this.userId = 1;
+            }
+
+            async listFiles(path) {
+                console.log('📄 listFiles appelé pour:', path);
+                const url = `${this.baseUrl}/files/files?path=${encodeURIComponent(path)}&userId=${this.userId}`;
+                console.log('🌐 URL:', url);
+                const response = await fetch(url);
+                console.log('📡 Réponse:', response.status);
+                if (!response.ok) throw new Error('Erreur fichiers');
+                const files = await response.json();
+                console.log('📄 Fichiers bruts:', files);
+                return files.map(file => ({
+                    id: file.id.toString(),
+                    name: file.name,
+                    type: "file",
+                    path: file.path,
+                    size: file.size,
+                    createdAt: file.createdAt,
+                    modifiedAt: file.updatedAt,
+                    mimeType: file.contentType,
+                    isFavorite: file.isFavorite
+                }));
+            }
+
+            async listFolders(path) {
+                console.log('📁 listFolders appelé pour:', path);
+                const url = `${this.baseUrl}/files/folders?path=${encodeURIComponent(path)}&userId=${this.userId}`;
+                console.log('🌐 URL:', url);
+                const response = await fetch(url);
+                console.log('📡 Réponse:', response.status);
+                if (!response.ok) throw new Error('Erreur dossiers');
+                const folders = await response.json();
+                console.log('📁 Dossiers bruts:', folders);
+                return folders.map(folder => ({
+                    id: folder.id.toString(),
+                    name: folder.name,
+                    type: "folder",
+                    path: folder.path,
+                    size: 0,
+                    createdAt: folder.createdAt,
+                    modifiedAt: folder.updatedAt,
+                    isFavorite: folder.isFavorite
+                }));
+            }
+
+            async listAll(path) {
+                console.log('🔍 listAll appelé pour:', path);
+                const [files, folders] = await Promise.all([
+                    this.listFiles(path),
+                    this.listFolders(path)
+                ]);
+                console.log('📄 Fichiers convertis:', files);
+                console.log('📁 Dossiers convertis:', folders);
+                const result = [...folders, ...files].sort((a, b) => {
+                    if (a.type !== b.type) {
+                        return a.type === 'folder' ? -1 : 1;
+                    }
+                    return a.name.localeCompare(b.name);
+                });
+                console.log('✅ Résultat final:', result);
+                return result;
+            }
+        }
+
+        async function testFileService() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Test en cours...</p>';
+
+            try {
+                const fileService = new TestFileService();
+                const result = await fileService.listAll('/bureau');
+                
+                resultsDiv.innerHTML = `
+                    <h2>Résultat FileService.listAll('/bureau')</h2>
+                    <p>Nombre d'éléments: ${result.length}</p>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                resultsDiv.innerHTML = `<p style="color: red;">Erreur: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html> 

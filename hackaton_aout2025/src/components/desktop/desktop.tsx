@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { DesktopIcon } from "./desktop-icon"
 import { useFileStore } from "@/stores/file-store"
 import { useWindowStore } from "@/stores/window-store"
@@ -12,10 +12,18 @@ import { fileService } from "@/services/file-service"
 export function Desktop() {
   const { files, loadFiles } = useFileStore()
   const { openWindow } = useWindowStore()
-  const { wallpaper, showWallpaperSelector, setShowWallpaperSelector, iconPositions, initializeIconPositions } =
-    useDesktopStore()
-  const [desktopFiles, setDesktopFiles] = useState<FileItem[]>([])
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const { 
+    wallpaper, 
+    showWallpaperSelector, 
+    setShowWallpaperSelector, 
+    iconPositions, 
+    initializeIconPositions,
+    desktopFiles,
+    loadDesktopFiles,
+    refreshDesktopFiles,
+    isLoadingDesktopFiles
+  } = useDesktopStore()
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selectedItem?: FileItem | null } | null>(null)
 
   // Applications disponibles sur le bureau
   const desktopApps: DesktopApp[] = useMemo(
@@ -99,22 +107,29 @@ export function Desktop() {
   }, [loadFiles])
 
   useEffect(() => {
-    // Simuler quelques fichiers sur le bureau
-    setDesktopFiles([
+    // Charger les fichiers du bureau depuis le dossier système Bureau
+    loadDesktopFiles()
+  }, [loadDesktopFiles])
 
-      {
-        id: "desktop-file-2",
-        name: "Documents",
-        type: "folder",
-        path: "/Documents",
-        size: 0,
-        createdAt: new Date().toISOString(),
-        modifiedAt: new Date().toISOString(),
-      },
-    ])
-  }, [])
+  // Rafraîchir le bureau quand il devient visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshDesktopFiles()
+      }
+    }
 
-  const allItems = useMemo(() => [...desktopApps, ...desktopFiles], [desktopApps, desktopFiles])
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [refreshDesktopFiles])
+
+  const allItems = useMemo(() => {
+    console.log('🔄 allItems recalculé - desktopApps:', desktopApps.length, 'desktopFiles:', desktopFiles.length)
+    console.log('📁 desktopFiles:', desktopFiles)
+    return [...desktopApps, ...desktopFiles]
+  }, [desktopApps, desktopFiles])
 
   useEffect(() => {
     initializeIconPositions(allItems)
@@ -179,14 +194,39 @@ export function Desktop() {
     }
   }
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = (e: React.MouseEvent, item?: FileItem) => {
     e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY })
+    setContextMenu({ x: e.clientX, y: e.clientY, selectedItem: item || null })
   }
 
   const handleIconPositionChange = (id: string, newPosition: { x: number; y: number }) => {
     // TODO: Sauvegarder la position
   }
+
+  // Gestion du drag & drop pour ajouter des fichiers au bureau
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) return
+
+    try {
+      for (const file of files) {
+        // Upload vers le dossier Bureau
+        await fileService.uploadFile('/bureau', file)
+      }
+      // Recharger les fichiers du bureau
+      await loadDesktopFiles()
+    } catch (error) {
+      console.error('Erreur lors de l\'upload de fichiers:', error)
+      alert('Erreur lors de l\'ajout de fichiers au bureau')
+    }
+  }, [loadDesktopFiles])
 
 
 
@@ -220,6 +260,8 @@ export function Desktop() {
       style={getWallpaperStyle()}
       onContextMenu={handleContextMenu}
       onClick={() => setContextMenu(null)}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       {/* Applications Grid */}
       {allItems.map((item) => {
@@ -232,6 +274,7 @@ export function Desktop() {
             item={item}
             position={position}
             onDoubleClick={() => handleDoubleClick(item)}
+            onContextMenu={handleContextMenu}
             onPositionChange={handleIconPositionChange}
             tooltip={"description" in item ? item.description : undefined}
           />
@@ -243,6 +286,7 @@ export function Desktop() {
         <DesktopContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
+          selectedItem={contextMenu.selectedItem}
           onClose={() => setContextMenu(null)}
           onPersonalize={() => {
             setShowWallpaperSelector(true)

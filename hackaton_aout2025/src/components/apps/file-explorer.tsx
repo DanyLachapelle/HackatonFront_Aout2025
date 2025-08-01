@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { FileViewer } from "@/components/file-viewer/file-viewer"
 import { fileService } from "@/services/file-service"
+import { useDesktopStore } from "@/stores/desktop-store"
 import type { FileItem } from "@/types/file-types"
 import { 
   FolderIcon,
@@ -48,6 +49,7 @@ interface FileExplorerProps {
 }
 
 export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
+  const { refreshDesktopFiles } = useDesktopStore()
   const [currentPath, setCurrentPath] = useState(initialPath)
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -82,18 +84,38 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     setLoading(true)
     try {
       console.log(`Chargement des fichiers pour le chemin: ${path}`)
-      const fileItems = await fileService.listAll(path)
-      console.log(`Fichiers récupérés:`, fileItems)
       
-      // Ajouter les propriétés manquantes pour la compatibilité
-      const enhancedFiles = fileItems.map(file => ({
-        ...file,
-        isSelected: false,
-        createdAt: new Date(file.createdAt),
-        modifiedAt: new Date(file.modifiedAt)
-      }))
-      console.log(`Fichiers enrichis:`, enhancedFiles)
-      setFiles(enhancedFiles)
+      // Si on est à la racine, charger uniquement les dossiers système
+      if (path === "/") {
+        console.log("🔍 Chargement des dossiers système à la racine...")
+        const folders = await fileService.listFolders(path)
+        console.log("📁 Dossiers récupérés:", folders)
+        const files = await fileService.listFiles(path)
+        console.log("📄 Fichiers récupérés:", files)
+        
+        const allItems = [...folders, ...files].map(item => ({
+          ...item,
+          isSelected: false,
+          createdAt: new Date(item.createdAt),
+          modifiedAt: new Date(item.modifiedAt)
+        }))
+        
+        console.log(`✅ Dossiers système récupérés:`, allItems)
+        setFiles(allItems)
+      } else {
+        const fileItems = await fileService.listAll(path)
+        console.log(`Fichiers récupérés:`, fileItems)
+        
+        // Ajouter les propriétés manquantes pour la compatibilité
+        const enhancedFiles = fileItems.map(file => ({
+          ...file,
+          isSelected: false,
+          createdAt: new Date(file.createdAt),
+          modifiedAt: new Date(file.modifiedAt)
+        }))
+        console.log(`Fichiers enrichis:`, enhancedFiles)
+        setFiles(enhancedFiles)
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des fichiers:', error)
       setFiles([])
@@ -150,38 +172,93 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   }, [selectedFiles, clipboard])
 
   const getFileIcon = (file: FileItem) => {
-    if (file.type === "folder") return <FolderIcon className="w-6 h-6 text-blue-500" />
+    // Icônes spéciales pour les dossiers système
+    if (file.type === "folder") {
+      const folderName = file.name.toLowerCase()
+      if (folderName === "bureau") return <span className="text-2xl">🖥️</span>
+      if (folderName === "musique") return <span className="text-2xl">🎵</span>
+      if (folderName === "images") return <span className="text-2xl">🖼️</span>
+      if (folderName === "documents") return <span className="text-2xl">📄</span>
+      return <FolderIcon className="w-6 h-6 text-blue-500" />
+    }
     
     const extension = file.extension?.toLowerCase()
     switch (extension) {
+      // Documents texte
       case "txt":
       case "md":
-      case "pdf":
+      case "rtf":
+      case "log":
         return <FileTextIcon className="w-6 h-6 text-gray-600" />
+      
+      // Images
       case "jpg":
       case "jpeg":
       case "png":
       case "gif":
+      case "bmp":
+      case "webp":
       case "svg":
+      case "ico":
+      case "tiff":
         return <FileImageIcon className="w-6 h-6 text-green-500" />
-      case "zip":
-      case "rar":
-      case "7z":
-        return <FileArchiveIcon className="w-6 h-6 text-orange-500" />
-      case "mp4":
-      case "avi":
-      case "mov":
-        return <FileVideoIcon className="w-6 h-6 text-purple-500" />
+      
+      // Audio/Musique
       case "mp3":
       case "wav":
       case "flac":
+      case "aac":
+      case "ogg":
+      case "m4a":
+      case "wma":
+      case "opus":
         return <FileAudioIcon className="w-6 h-6 text-pink-500" />
+      
+      // Vidéo
+      case "mp4":
+      case "avi":
+      case "mov":
+      case "wmv":
+      case "flv":
+      case "webm":
+      case "mkv":
+      case "m4v":
+        return <FileVideoIcon className="w-6 h-6 text-purple-500" />
+      
+      // Code
       case "html":
       case "css":
+      case "scss":
+      case "sass":
       case "js":
       case "ts":
+      case "jsx":
+      case "tsx":
       case "json":
+      case "xml":
+      case "yaml":
+      case "yml":
         return <FileCodeIcon className="w-6 h-6 text-blue-600" />
+      
+      // Documents Office
+      case "pdf":
+      case "doc":
+      case "docx":
+      case "ppt":
+      case "pptx":
+      case "xls":
+      case "xlsx":
+        return <FileTextIcon className="w-6 h-6 text-red-500" />
+      
+      // Archives
+      case "zip":
+      case "rar":
+      case "7z":
+      case "tar":
+      case "gz":
+      case "bz2":
+        return <FileArchiveIcon className="w-6 h-6 text-orange-500" />
+      
       default:
         return <FileIcon className="w-6 h-6 text-gray-500" />
     }
@@ -257,7 +334,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     }
   }
 
-  const handleFileDoubleClick = (file: FileItem) => {
+  const handleFileDoubleClick = async (file: FileItem) => {
     if (file.type === "folder") {
       navigateTo(file.path)
     } else {
@@ -285,17 +362,24 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
         // Ouvrir les images dans le visionneur
         const fileType: 'text' | 'image' | 'folder' = 'image'
         
-        const viewerFileData = {
-          name: file.name,
-          type: fileType,
-          size: file.size,
-          lastModified: file.modifiedAt,
-          content: undefined,
-          url: getImageUrl(file.name)
+        try {
+          const imageUrl = await getImageUrl(file.path)
+          
+          const viewerFileData = {
+            name: file.name,
+            type: fileType,
+            size: file.size,
+            lastModified: file.modifiedAt,
+            content: undefined,
+            url: imageUrl
+          }
+          
+          setViewerFile(viewerFileData)
+          setShowFileViewer(true)
+        } catch (error) {
+          console.error('Erreur lors de l\'ouverture de l\'image:', error)
+          alert('Impossible d\'ouvrir cette image.')
         }
-        
-        setViewerFile(viewerFileData)
-        setShowFileViewer(true)
       } else {
         // Pour les autres types de fichiers, afficher un message
         alert(`Ce type de fichier (.${extension}) n'est pas encore supporté pour l'édition.`)
@@ -332,12 +416,40 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     setClipboard(null)
   }
 
-  const deleteSelected = () => {
+  const deleteSelected = async () => {
     if (selectedFiles.length === 0) return
     
     if (confirm(`Supprimer ${selectedFiles.length} élément(s) ?`)) {
-      setFiles(prev => prev.filter(f => !selectedFiles.includes(f.id)))
-      setSelectedFiles([])
+      try {
+        // Récupérer les éléments sélectionnés
+        const selectedItems = files.filter(f => selectedFiles.includes(f.id))
+        
+        // Supprimer chaque élément via le backend
+        for (const item of selectedItems) {
+          if (item.type === "folder") {
+            await fileService.deleteFolder(item.id)
+            console.log(`Dossier "${item.name}" supprimé avec succès`)
+          } else {
+            await fileService.deleteFileById(item.id)
+            console.log(`Fichier "${item.name}" supprimé avec succès`)
+          }
+        }
+        
+        // Supprimer visuellement de l'interface
+        setFiles(prev => prev.filter(f => !selectedFiles.includes(f.id)))
+        setSelectedFiles([])
+        
+        // Si on est dans le dossier Bureau, rafraîchir le bureau
+        if (currentPath === '/bureau') {
+          console.log('🖥️ Rafraîchissement du bureau après suppression...')
+          await refreshDesktopFiles()
+        }
+        
+        console.log(`${selectedItems.length} élément(s) supprimé(s) avec succès`)
+      } catch (error) {
+        console.error('Erreur lors de la suppression:', error)
+        alert(`Erreur lors de la suppression: ${error}`)
+      }
     }
   }
 
@@ -421,6 +533,14 @@ Cette archive a été créée depuis l'explorateur de fichiers de l'application 
   const createNewItem = async () => {
     if (!newItemName.trim()) return
     
+    // Empêcher la création à la racine
+    if (currentPath === "/") {
+      alert("Impossible de créer des fichiers ou dossiers à la racine. Utilisez les dossiers système existants.")
+      setNewItemName("")
+      setShowCreateDialog(false)
+      return
+    }
+    
     try {
       console.log(`Création d'un ${createType} nommé "${newItemName}" dans le chemin "${currentPath}"`)
       
@@ -439,6 +559,17 @@ Cette archive a été créée depuis l'explorateur de fichiers de l'application 
       console.log('Rechargement des fichiers...')
       await loadFiles(currentPath)
       console.log('Fichiers rechargés avec succès')
+      
+      // Si on est dans le dossier Bureau, rafraîchir le bureau
+      if (currentPath === '/bureau') {
+        console.log('🖥️ Rafraîchissement du bureau après création...')
+        try {
+          await refreshDesktopFiles()
+          console.log('Bureau rafraîchi avec succès')
+        } catch (error) {
+          console.error('Erreur lors du rafraîchissement du bureau:', error)
+        }
+      }
       
       setNewItemName("")
       setShowCreateDialog(false)
@@ -715,16 +846,18 @@ Vous pouvez toujours :
   }
 
   // Fonction pour obtenir l'URL d'une image
-  const getImageUrl = (fileName: string) => {
-    // Images d'exemple d'Unsplash
-    const images = {
-      'photo1.jpg': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
-      'photo2.jpg': 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop',
-      'photo3.jpg': 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&h=600&fit=crop',
-      'photo4.jpg': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop',
-      'photo5.jpg': 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop'
+  const getImageUrl = async (filePath: string): Promise<string> => {
+    try {
+      console.log(`Téléchargement de l'image: ${filePath}`)
+      const blob = await fileService.downloadFile(filePath)
+      const url = URL.createObjectURL(blob)
+      console.log(`URL créée pour l'image: ${url}`)
+      return url
+    } catch (error) {
+      console.error('Erreur lors du téléchargement de l\'image:', error)
+      // Fallback vers une image d'erreur
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMDAgNTBDMTI3LjYxNCA1MCAxNTAgNzIuMzg2IDE1MCAxMDBDMTUwIDEyNy42MTQgMTI3LjYxNCAxNTAgMTAwIDE1MEM3Mi4zODYgMTUwIDUwIDEyNy42MTQgNTAgMTAwQzUwIDcyLjM4NiA3Mi4zODYgNTAgMTAwIDUwWiIgZmlsbD0iI0QxRDFENyIvPgo8cGF0aCBkPSJNMTEwIDkwSDEwMFYxMTBIMTEwVjkwWiIgZmlsbD0iI0QxRDFENyIvPgo8cGF0aCBkPSJNMTAwIDExMFYxMjBIMTEwVjExMEgxMDBaIiBmaWxsPSIjRDFEMUQ3Ii8+Cjwvc3ZnPgo='
     }
-    return images[fileName as keyof typeof images] || images['photo1.jpg']
   }
 
   return (

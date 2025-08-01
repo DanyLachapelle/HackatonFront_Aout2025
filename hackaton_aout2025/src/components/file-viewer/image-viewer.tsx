@@ -32,6 +32,11 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
   const imageRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
+    if (!url) {
+      setError('Aucune URL d\'image fournie')
+      return
+    }
+
     const img = new window.Image()
     img.onload = () => {
       setImageInfo({

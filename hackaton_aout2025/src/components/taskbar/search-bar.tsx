@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SearchIcon, FolderIcon, FileIcon } from "lucide-react"
 import { useWindowStore } from "@/stores/window-store"
+import { getFileIconEmoji } from "@/lib/file-icons"
 
 interface SearchResult {
   id: string
@@ -199,41 +200,7 @@ export function SearchBar() {
 
   // Fonction pour obtenir l'icône appropriée selon l'extension du fichier
   const getFileIcon = (fileName: string): string => {
-    const extension = fileName.split('.').pop()?.toLowerCase()
-    switch (extension) {
-      case 'txt':
-        return '📄'
-      case 'doc':
-      case 'docx':
-        return '📝'
-      case 'xls':
-      case 'xlsx':
-        return '📊'
-      case 'ppt':
-      case 'pptx':
-        return '📈'
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-      case 'bmp':
-        return '🖼️'
-      case 'mp3':
-      case 'wav':
-      case 'flac':
-        return '🎵'
-      case 'mp4':
-      case 'avi':
-      case 'mov':
-        return '🎬'
-      case 'pdf':
-        return '📕'
-      case 'zip':
-      case 'rar':
-        return '📦'
-      default:
-        return '📄'
-    }
+    return getFileIconEmoji(fileName)
   }
 
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Settings, X, Minimize2, Maximize2 } from "lucide-react"
+import { getFileItemIconEmoji } from "@/lib/file-icons"
 
 interface FileItem {
   id: string
@@ -291,16 +292,7 @@ export function Terminal({ initialPath = "/", windowId }: TerminalProps) {
   }
 
   const getFileIcon = (file: FileItem) => {
-    if (file.type === "folder") return "📁"
-    
-    switch (file.extension) {
-      case "txt": return "📄"
-      case "json": return "⚙️"
-      case "pdf": return "📕"
-      case "jpg":
-      case "png": return "🖼️"
-      default: return "📄"
-    }
+    return getFileItemIconEmoji(file)
   }
 
   useEffect(() => {

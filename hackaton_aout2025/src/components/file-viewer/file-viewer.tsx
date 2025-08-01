@@ -29,6 +29,15 @@ export const FileViewer: React.FC<FileViewerProps> = ({
   const [zoom, setZoom] = useState(1)
   const [rotation, setRotation] = useState(0)
 
+  // Nettoyer les URLs blob quand le composant se ferme
+  useEffect(() => {
+    return () => {
+      if (file.url && file.url.startsWith('blob:')) {
+        URL.revokeObjectURL(file.url)
+      }
+    }
+  }, [file.url])
+
   // Gestion des raccourcis clavier
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

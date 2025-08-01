@@ -54,10 +54,17 @@ export function ImageGallery() {
   const loadImageFiles = async () => {
     try {
       setIsLoading(true)
-      const imageFiles = await fileService.findImageFiles()
+      // Charger les fichiers depuis le dossier système Images
+      const imageFiles = await fileService.listFiles('/images')
+      
+      // Filtrer pour ne garder que les fichiers image
+      const actualImageFiles = imageFiles.filter(file => 
+        file.contentType?.startsWith('image/') || 
+        ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(file.name.split('.').pop()?.toLowerCase() || '')
+      )
       
       // Convertir les FileItem en ImageItem
-      const imageItems: ImageItem[] = imageFiles.map((file) => {
+      const imageItems: ImageItem[] = actualImageFiles.map((file) => {
         const fileName = file.name.replace(/\.[^/.]+$/, "") // Enlever l'extension
         const extension = file.name.split('.').pop()?.toLowerCase()
         
@@ -77,7 +84,7 @@ export function ImageGallery() {
       })
       
       setImages(imageItems)
-      console.log(`Chargé ${imageItems.length} images depuis l'arborescence`)
+      console.log(`Chargé ${imageItems.length} images depuis le dossier Images`)
     } catch (error) {
       console.error("Erreur lors du chargement des images:", error)
       // Fallback vers les images d'exemple si erreur
