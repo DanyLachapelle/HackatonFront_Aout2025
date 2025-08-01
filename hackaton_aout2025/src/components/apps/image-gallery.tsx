@@ -60,8 +60,8 @@ export function ImageGallery() {
         const fileName = file.name.replace(/\.[^/.]+$/, "") // Enlever l'extension
         const extension = file.name.split('.').pop()?.toLowerCase()
         
-        // Générer une URL d'image basée sur le nom du fichier
-        const imageUrl = `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000000000)}?w=400&h=300&fit=crop&text=${encodeURIComponent(fileName)}`
+        // Utiliser l'URL de téléchargement du backend pour les vraies images
+        const imageUrl = `/api/v2/files/download?path=${encodeURIComponent(file.path)}&userId=1`
         
         return {
           id: file.id,

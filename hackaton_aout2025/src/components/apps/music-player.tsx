@@ -81,6 +81,7 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
           artist: "Artiste inconnu",
           album: "Album inconnu",
           duration: Math.floor(Math.random() * 300) + 120, // Durée aléatoire entre 2-7 minutes
+          url: `/api/v2/files/download?path=${encodeURIComponent(file.path)}&userId=1`, // URL du backend
           cover: `https://via.placeholder.com/150/1f2937/ffffff?text=${encodeURIComponent(fileName)}`,
           isLiked: Math.random() > 0.7, // 30% de chance d'être aimé
           filePath: file.path,

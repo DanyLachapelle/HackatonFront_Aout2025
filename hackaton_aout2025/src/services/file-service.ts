@@ -1,265 +1,141 @@
 import type { FileItem } from "@/types/file-types"
+import { config } from "@/config/environment"
 
-// Structure de données pour simuler l'arborescence complète
-const mockFileSystem: Record<string, FileItem[]> = {
-  "/": [
-    {
-      id: "1",
-      name: "Documents",
-      type: "folder",
-      path: "/Documents",
-      size: 0,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-    },
-    {
-      id: "2",
-      name: "Images",
-      type: "folder",
-      path: "/Images",
-      size: 0,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-    },
-    {
-      id: "3",
-      name: "Musique",
-      type: "folder",
-      path: "/Musique",
-      size: 0,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-    },
-    {
-      id: "4",
-      name: "photo.jpg",
-      type: "file",
-      path: "/photo.jpg",
-      size: 2048576,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "image/jpeg",
-    },
-  ],
-  "/Documents": [
-    {
-      id: "5",
-      name: "Travail",
-      type: "folder",
-      path: "/Documents/Travail",
-      size: 0,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-    },
-    {
-      id: "6",
-      name: "rapport.txt",
-      type: "file",
-      path: "/Documents/rapport.txt",
-      size: 1024,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "text/plain",
-    },
-  ],
-  "/Images": [
-    {
-      id: "7",
-      name: "vacances.jpg",
-      type: "file",
-      path: "/Images/vacances.jpg",
-      size: 3072000,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "image/jpeg",
-    },
-    {
-      id: "8",
-      name: "screenshot.png",
-      type: "file",
-      path: "/Images/screenshot.png",
-      size: 1536000,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "image/png",
-    },
-    {
-      id: "9",
-      name: "wallpapers",
-      type: "folder",
-      path: "/Images/wallpapers",
-      size: 0,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-    },
-  ],
-  "/Images/wallpapers": [
-    {
-      id: "10",
-      name: "nature.jpg",
-      type: "file",
-      path: "/Images/wallpapers/nature.jpg",
-      size: 4096000,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "image/jpeg",
-    },
-    {
-      id: "11",
-      name: "abstract.png",
-      type: "file",
-      path: "/Images/wallpapers/abstract.png",
-      size: 2560000,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "image/png",
-    },
-  ],
-  "/Musique": [
-    {
-      id: "12",
-      name: "Playlist 1",
-      type: "folder",
-      path: "/Musique/Playlist 1",
-      size: 0,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-    },
-    {
-      id: "13",
-      name: "chanson.mp3",
-      type: "file",
-      path: "/Musique/chanson.mp3",
-      size: 5242880,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "audio/mpeg",
-    },
-    {
-      id: "14",
-      name: "album.wav",
-      type: "file",
-      path: "/Musique/album.wav",
-      size: 10485760,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "audio/wav",
-    },
-  ],
-  "/Musique/Playlist 1": [
-    {
-      id: "15",
-      name: "titre1.mp3",
-      type: "file",
-      path: "/Musique/Playlist 1/titre1.mp3",
-      size: 3145728,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "audio/mpeg",
-    },
-    {
-      id: "16",
-      name: "titre2.mp3",
-      type: "file",
-      path: "/Musique/Playlist 1/titre2.mp3",
-      size: 4194304,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "audio/mpeg",
-    },
-    {
-      id: "17",
-      name: "titre3.flac",
-      type: "file",
-      path: "/Musique/Playlist 1/titre3.flac",
-      size: 8388608,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "audio/flac",
-    },
-  ],
-  "/Documents/Travail": [
-    {
-      id: "18",
-      name: "presentation.pptx",
-      type: "file",
-      path: "/Documents/Travail/presentation.pptx",
-      size: 2097152,
-      createdAt: new Date().toISOString(),
-      modifiedAt: new Date().toISOString(),
-      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    },
-  ],
+// Types pour les DTOs du backend
+interface FileDto {
+  id: number
+  name: string
+  path: string
+  contentType: string
+  size: number
+  isFavorite: boolean
+  createdAt: string
+  updatedAt: string
+  folderId?: number
+  folderName?: string
+  folderPath?: string
+  userId: number
+  username: string
+}
+
+interface FolderDto {
+  id: number
+  name: string
+  path: string
+  parentFolderId?: number
+  parentFolderName?: string
+  userId: number
+  username: string
+  isFavorite: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+interface CreateFileRequest {
+  parentPath: string
+  name: string
+  content: string
+  userId: number
+}
+
+interface CreateFolderRequest {
+  parentPath: string
+  name: string
+  userId: number
 }
 
 class FileService {
-  private baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8080/api"
+  private baseUrl = config.apiUrl
+  private userId = config.defaultUserId // TODO: Récupérer depuis l'authentification
 
-  // Fonction pour rechercher récursivement les fichiers musicaux
-  async findMusicFiles(): Promise<FileItem[]> {
-    try {
-      const response = await fetch(`${this.baseUrl}/files/search?query=.mp3,.wav,.flac`)
-      if (!response.ok) throw new Error('Erreur lors de la recherche')
-      const files = await response.json()
-      return files.filter((file: FileItem) => this.isMusicFile(file))
-    } catch (error) {
-      console.error('Erreur lors de la recherche de fichiers musicaux:', error)
-      return []
+  // === CONVERSION DTOs vers FileItem ===
+  
+  private fileDtoToFileItem(fileDto: FileDto): FileItem {
+    return {
+      id: fileDto.id.toString(),
+      name: fileDto.name,
+      type: "file",
+      path: fileDto.path,
+      size: fileDto.size,
+      createdAt: fileDto.createdAt,
+      modifiedAt: fileDto.updatedAt,
+      mimeType: fileDto.contentType,
+      isFavorite: fileDto.isFavorite
     }
   }
 
-  // Fonction pour rechercher récursivement les fichiers images
-  async findImageFiles(): Promise<FileItem[]> {
-    try {
-      const response = await fetch(`${this.baseUrl}/files/search?query=.jpg,.png,.gif,.bmp`)
-      if (!response.ok) throw new Error('Erreur lors de la recherche')
-      const files = await response.json()
-      return files.filter((file: FileItem) => this.isImageFile(file))
-    } catch (error) {
-      console.error('Erreur lors de la recherche de fichiers images:', error)
-      return []
+  private folderDtoToFileItem(folderDto: FolderDto): FileItem {
+    return {
+      id: folderDto.id.toString(),
+      name: folderDto.name,
+      type: "folder",
+      path: folderDto.path,
+      size: 0,
+      createdAt: folderDto.createdAt,
+      modifiedAt: folderDto.updatedAt,
+      isFavorite: folderDto.isFavorite
     }
   }
 
-  // Vérifier si un fichier est un fichier musical
-  private isMusicFile(file: FileItem): boolean {
-    const musicExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma']
-    const musicMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/ogg', 'audio/mp4', 'audio/x-ms-wma']
-    
-    const lastDotIndex = file.name.lastIndexOf('.')
-    const extension = lastDotIndex > 0 ? file.name.toLowerCase().substring(lastDotIndex) : ''
-    return musicExtensions.includes(extension) || (!!file.mimeType && musicMimeTypes.includes(file.mimeType))
-  }
-
-  // Vérifier si un fichier est une image
-  private isImageFile(file: FileItem): boolean {
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff']
-    const imageMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp', 'image/svg+xml', 'image/tiff']
-    
-    const lastDotIndex = file.name.lastIndexOf('.')
-    const extension = lastDotIndex > 0 ? file.name.toLowerCase().substring(lastDotIndex) : ''
-    return imageExtensions.includes(extension) || (!!file.mimeType && imageMimeTypes.includes(file.mimeType))
-  }
+  // === GESTION DES FICHIERS ===
 
   async listFiles(path: string): Promise<FileItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/list?path=${encodeURIComponent(path)}`)
+      const response = await fetch(`${this.baseUrl}/files/files?path=${encodeURIComponent(path)}&userId=${this.userId}`)
       if (!response.ok) throw new Error('Erreur lors du chargement des fichiers')
-      return await response.json()
+      const files: FileDto[] = await response.json()
+      return files.map(file => this.fileDtoToFileItem(file))
     } catch (error) {
       console.error('Erreur lors du chargement des fichiers:', error)
       return []
     }
   }
 
+  async listFolders(path: string): Promise<FileItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/folders?path=${encodeURIComponent(path)}&userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors du chargement des dossiers')
+      const folders: FolderDto[] = await response.json()
+      return folders.map(folder => this.folderDtoToFileItem(folder))
+    } catch (error) {
+      console.error('Erreur lors du chargement des dossiers:', error)
+      return []
+    }
+  }
+
+  async listAll(path: string): Promise<FileItem[]> {
+    try {
+      const [files, folders] = await Promise.all([
+        this.listFiles(path),
+        this.listFolders(path)
+      ])
+      return [...folders, ...files].sort((a, b) => {
+        // Dossiers en premier, puis par nom
+        if (a.type !== b.type) {
+          return a.type === 'folder' ? -1 : 1
+        }
+        return a.name.localeCompare(b.name)
+      })
+    } catch (error) {
+      console.error('Erreur lors du chargement des éléments:', error)
+      return []
+    }
+  }
+
   async createFolder(parentPath: string, name: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/folder`, {
+      const request: CreateFolderRequest = {
+        parentPath,
+        name,
+        userId: this.userId
+      }
+      
+      const response = await fetch(`${this.baseUrl}/files/folders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ parentPath, name })
+        body: JSON.stringify(request)
       })
       if (!response.ok) throw new Error('Erreur lors de la création du dossier')
     } catch (error) {
@@ -270,12 +146,19 @@ class FileService {
 
   async createFile(parentPath: string, name: string, content: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/file`, {
+      const request: CreateFileRequest = {
+        parentPath,
+        name,
+        content,
+        userId: this.userId
+      }
+      
+      const response = await fetch(`${this.baseUrl}/files/files`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ parentPath, name, content })
+        body: JSON.stringify(request)
       })
       if (!response.ok) throw new Error('Erreur lors de la création du fichier')
     } catch (error) {
@@ -284,9 +167,27 @@ class FileService {
     }
   }
 
+  async uploadFile(parentPath: string, file: File): Promise<void> {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('parentPath', parentPath)
+      formData.append('userId', this.userId.toString())
+      
+      const response = await fetch(`${this.baseUrl}/files/files/upload`, {
+        method: 'POST',
+        body: formData
+      })
+      if (!response.ok) throw new Error('Erreur lors de l\'upload du fichier')
+    } catch (error) {
+      console.error('Erreur lors de l\'upload du fichier:', error)
+      throw error
+    }
+  }
+
   async getFileContent(path: string): Promise<string> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/content?path=${encodeURIComponent(path)}`)
+      const response = await fetch(`${this.baseUrl}/files/files/content?path=${encodeURIComponent(path)}&userId=${this.userId}`)
       if (!response.ok) throw new Error('Erreur lors de la lecture du fichier')
       return await response.text()
     } catch (error) {
@@ -297,12 +198,8 @@ class FileService {
 
   async updateFileContent(path: string, content: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/content`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ path, content })
+      const response = await fetch(`${this.baseUrl}/files/files/content?path=${encodeURIComponent(path)}&content=${encodeURIComponent(content)}&userId=${this.userId}`, {
+        method: 'PUT'
       })
       if (!response.ok) throw new Error('Erreur lors de la mise à jour du fichier')
     } catch (error) {
@@ -313,7 +210,7 @@ class FileService {
 
   async deleteFile(path: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files?path=${encodeURIComponent(path)}`, {
+      const response = await fetch(`${this.baseUrl}/files/files?path=${encodeURIComponent(path)}&userId=${this.userId}`, {
         method: 'DELETE'
       })
       if (!response.ok) throw new Error('Erreur lors de la suppression')
@@ -325,13 +222,168 @@ class FileService {
 
   async downloadFile(path: string): Promise<Blob> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/download?path=${encodeURIComponent(path)}`)
+      const response = await fetch(`${this.baseUrl}/files/download?path=${encodeURIComponent(path)}&userId=${this.userId}`)
       if (!response.ok) throw new Error('Erreur lors du téléchargement')
       return await response.blob()
     } catch (error) {
       console.error('Erreur lors du téléchargement:', error)
       throw error
     }
+  }
+
+  // === GESTION DES FAVORIS ===
+
+  async getFavoriteFiles(): Promise<FileItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/files/favorites?userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors du chargement des favoris')
+      const files: FileDto[] = await response.json()
+      return files.map(file => this.fileDtoToFileItem(file))
+    } catch (error) {
+      console.error('Erreur lors du chargement des favoris:', error)
+      return []
+    }
+  }
+
+  async getFavoriteFolders(): Promise<FileItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/folders/favorites?userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors du chargement des favoris')
+      const folders: FolderDto[] = await response.json()
+      return folders.map(folder => this.folderDtoToFileItem(folder))
+    } catch (error) {
+      console.error('Erreur lors du chargement des favoris:', error)
+      return []
+    }
+  }
+
+  async toggleFileFavorite(path: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/files/favorite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path, userId: this.userId })
+      })
+      if (!response.ok) throw new Error('Erreur lors du basculement du favori')
+    } catch (error) {
+      console.error('Erreur lors du basculement du favori:', error)
+      throw error
+    }
+  }
+
+  async toggleFolderFavorite(path: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/folders/favorite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path, userId: this.userId })
+      })
+      if (!response.ok) throw new Error('Erreur lors du basculement du favori')
+    } catch (error) {
+      console.error('Erreur lors du basculement du favori:', error)
+      throw error
+    }
+  }
+
+  // === RECHERCHE ===
+
+  async searchFiles(query: string): Promise<FileItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/search?query=${encodeURIComponent(query)}&userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors de la recherche')
+      const files: FileDto[] = await response.json()
+      return files.map(file => this.fileDtoToFileItem(file))
+    } catch (error) {
+      console.error('Erreur lors de la recherche:', error)
+      return []
+    }
+  }
+
+  async searchFilesByType(contentType: string): Promise<FileItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/search/type?contentType=${encodeURIComponent(contentType)}&userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors de la recherche par type')
+      const files: FileDto[] = await response.json()
+      return files.map(file => this.fileDtoToFileItem(file))
+    } catch (error) {
+      console.error('Erreur lors de la recherche par type:', error)
+      return []
+    }
+  }
+
+  // === APPLICATIONS SPÉCIALISÉES ===
+
+  async findMusicFiles(): Promise<FileItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/audio?userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors de la recherche de fichiers musicaux')
+      const files: FileDto[] = await response.json()
+      return files.map(file => this.fileDtoToFileItem(file))
+    } catch (error) {
+      console.error('Erreur lors de la recherche de fichiers musicaux:', error)
+      return []
+    }
+  }
+
+  async findImageFiles(): Promise<FileItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/images?userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors de la recherche de fichiers images')
+      const files: FileDto[] = await response.json()
+      return files.map(file => this.fileDtoToFileItem(file))
+    } catch (error) {
+      console.error('Erreur lors de la recherche de fichiers images:', error)
+      return []
+    }
+  }
+
+  async findTextFiles(): Promise<FileItem[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/text?userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors de la recherche de fichiers texte')
+      const files: FileDto[] = await response.json()
+      return files.map(file => this.fileDtoToFileItem(file))
+    } catch (error) {
+      console.error('Erreur lors de la recherche de fichiers texte:', error)
+      return []
+    }
+  }
+
+  // === UTILITAIRES ===
+
+  async getFolderItemCount(path: string): Promise<number> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/count?path=${encodeURIComponent(path)}&userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors du comptage')
+      return await response.json()
+    } catch (error) {
+      console.error('Erreur lors du comptage:', error)
+      return 0
+    }
+  }
+
+  // === MÉTHODES DE VÉRIFICATION (gardées pour compatibilité) ===
+
+  private isMusicFile(file: FileItem): boolean {
+    const musicExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma']
+    const musicMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/ogg', 'audio/mp4', 'audio/x-ms-wma']
+    
+    const lastDotIndex = file.name.lastIndexOf('.')
+    const extension = lastDotIndex > 0 ? file.name.toLowerCase().substring(lastDotIndex) : ''
+    return musicExtensions.includes(extension) || (!!file.mimeType && musicMimeTypes.includes(file.mimeType))
+  }
+
+  private isImageFile(file: FileItem): boolean {
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff']
+    const imageMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp', 'image/svg+xml', 'image/tiff']
+    
+    const lastDotIndex = file.name.lastIndexOf('.')
+    const extension = lastDotIndex > 0 ? file.name.toLowerCase().substring(lastDotIndex) : ''
+    return imageExtensions.includes(extension) || (!!file.mimeType && imageMimeTypes.includes(file.mimeType))
   }
 }
 

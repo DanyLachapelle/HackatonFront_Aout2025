@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { FileViewer } from "@/components/file-viewer/file-viewer"
+import { fileService } from "@/services/file-service"
+import type { FileItem } from "@/types/file-types"
 import { 
   FolderIcon,
   FileIcon,
@@ -39,18 +41,7 @@ import {
 import JSZip from "jszip"
 import { useWindowStore } from "@/stores/window-store"
 
-interface FileItem {
-  id: string
-  name: string
-  type: "file" | "folder"
-  size: number
-  createdAt: Date
-  modifiedAt: Date
-  path: string
-  extension?: string
-  isSelected: boolean
-  isFavorite: boolean
-}
+// Utilise le type FileItem importé depuis les types
 
 interface FileExplorerProps {
   initialPath?: string
@@ -59,6 +50,7 @@ interface FileExplorerProps {
 export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   const [currentPath, setCurrentPath] = useState(initialPath)
   const [files, setFiles] = useState<FileItem[]>([])
+  const [loading, setLoading] = useState(false)
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
   const [sortBy, setSortBy] = useState<"name" | "type" | "size" | "date">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
@@ -85,19 +77,26 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
 
   const fileExplorerRef = useRef<HTMLDivElement>(null)
 
-  // Données d'exemple pour simuler un système de fichiers
-  const mockFileSystem: Record<string, FileItem[]> = {
-    "/": [
-      {
-        id: "1",
-        name: "Documents",
-        type: "folder",
-        size: 0,
-        createdAt: new Date("2024-01-01"),
-        modifiedAt: new Date("2024-01-15"),
-        path: "/Documents",
+  // Charger les fichiers depuis le backend
+  const loadFiles = async (path: string) => {
+    setLoading(true)
+    try {
+      const fileItems = await fileService.listAll(path)
+      // Ajouter les propriétés manquantes pour la compatibilité
+      const enhancedFiles = fileItems.map(file => ({
+        ...file,
         isSelected: false,
-        isFavorite: true
+        createdAt: new Date(file.createdAt),
+        modifiedAt: new Date(file.modifiedAt)
+      }))
+      setFiles(enhancedFiles)
+    } catch (error) {
+      console.error('Erreur lors du chargement des fichiers:', error)
+      setFiles([])
+    } finally {
+      setLoading(false)
+    }
+  }
       },
       {
         id: "2",
