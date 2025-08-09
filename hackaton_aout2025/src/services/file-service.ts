@@ -51,15 +51,19 @@ class FileService {
   // === CONVERSION DTOs vers FileItem ===
   
   private fileDtoToFileItem(fileDto: FileDto): FileItem {
+    const name = fileDto.name || (fileDto.path?.split('/')?.pop() || '')
+    const lastDotIndex = name.lastIndexOf('.')
+    const extension = lastDotIndex > 0 ? name.substring(lastDotIndex + 1).toLowerCase() : undefined
     return {
       id: fileDto.id.toString(),
-      name: fileDto.name,
+      name,
       type: "file",
       path: fileDto.path,
       size: fileDto.size,
       createdAt: fileDto.createdAt,
       modifiedAt: fileDto.updatedAt,
       mimeType: fileDto.contentType,
+      extension,
       isFavorite: fileDto.isFavorite
     }
   }

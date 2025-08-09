@@ -69,7 +69,7 @@ export function ImageGallery() {
         const extension = file.name.split('.').pop()?.toLowerCase()
         
         // Utiliser l'URL de téléchargement du backend pour les vraies images
-        const imageUrl = `${config.apiUrl}/download?path=${encodeURIComponent(file.path)}&userId=1`
+        const imageUrl = `${config.apiUrl}/files/download?path=${encodeURIComponent(file.path)}&userId=1`
         
         return {
           id: file.id,

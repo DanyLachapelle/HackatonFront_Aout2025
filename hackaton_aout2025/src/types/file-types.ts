@@ -7,6 +7,7 @@ export interface FileItem {
   createdAt: string
   modifiedAt: string
   mimeType?: string
+  extension?: string
   parentId?: string
   isFavorite?: boolean
   folderId?: number

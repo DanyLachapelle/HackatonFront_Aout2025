@@ -73,15 +73,14 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
       const musicFiles = await fileService.listFiles('/musique')
       
       // Filtrer pour ne garder que les fichiers audio
-      const audioFiles = musicFiles.filter(file => 
-        file.contentType?.startsWith('audio/') || 
-        ['mp3', 'wav', 'flac', 'ogg', 'm4a'].includes(file.name.split('.').pop()?.toLowerCase() || '')
-      )
+      const audioFiles = musicFiles.filter(file => {
+        const ext = (file as any).extension || file.name.split('.').pop()?.toLowerCase()
+        return (file.mimeType?.startsWith('audio/') || ['mp3','wav','flac','ogg','m4a','aac','opus','wma'].includes(ext || ''))
+      })
       
       // Convertir les FileItem en Song
       const songs: Song[] = audioFiles.map((file, index) => {
         const fileName = file.name.replace(/\.[^/.]+$/, "") // Enlever l'extension
-        const extension = file.name.split('.').pop()?.toLowerCase()
         
         return {
           id: file.id,
@@ -89,7 +88,7 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
           artist: "Artiste inconnu",
           album: "Album inconnu",
           duration: Math.floor(Math.random() * 300) + 120, // Durée aléatoire entre 2-7 minutes
-          url: `${config.apiUrl}/download?path=${encodeURIComponent(file.path)}&userId=1`, // URL complète du backend
+          url: `${config.apiUrl}/files/download?path=${encodeURIComponent(file.path)}&userId=1`, // URL complète du backend
           cover: `https://via.placeholder.com/150/1f2937/ffffff?text=${encodeURIComponent(fileName)}`,
           isLiked: Math.random() > 0.7, // 30% de chance d'être aimé
           filePath: file.path,
@@ -148,6 +147,16 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
       audio.removeEventListener("ended", handleEnded)
     }
   }, [])
+
+  // Charger la source audio quand la chanson change
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !currentSong?.url) return
+    audio.src = currentSong.url
+    if (isPlaying) {
+      audio.play().catch(() => {/* ignore */})
+    }
+  }, [currentSongIndex, playlist])
 
   // Mise à jour du volume
   useEffect(() => {
@@ -240,7 +249,14 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
   const playSong = (index: number) => {
     setCurrentSongIndex(index)
     setIsPlaying(true)
-    // Dans une vraie app, on chargerait l'audio ici
+    const audio = audioRef.current
+    if (audio) {
+      const next = playlist[index]
+      if (next?.url) {
+        audio.src = next.url
+        audio.play().catch(() => {/* ignore */})
+      }
+    }
   }
 
   const filteredPlaylist = playlist.filter(song =>
@@ -313,6 +329,8 @@ export function MusicPlayer({ windowId }: MusicPlayerProps) {
         <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
           <Card className="w-full max-w-2xl bg-white/5 backdrop-blur-sm border-white/10 shadow-2xl">
             <CardContent className="p-8 text-white">
+              {/* Lecteur audio caché (contrôlé par l'UI) */}
+              <audio ref={audioRef} preload="metadata" />
               {/* Pochette d'album */}
               <div className="text-center mb-8">
                 <div className="w-80 h-80 mx-auto mb-6 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 shadow-2xl">

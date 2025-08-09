@@ -179,17 +179,63 @@ export function Desktop() {
           zIndex: 1000,
         })
       } else {
-        openWindow({
-          id: `viewer-${file.id}`,
-          title: file.name,
-          type: "file-viewer",
-          filePath: file.path,
-          position: { x: 150, y: 150 },
-          size: { width: 600, height: 400 },
-          isMinimized: false,
-          isMaximized: false,
-          zIndex: 1000,
-        })
+        // Router selon le type du fichier
+        const extension = (file.extension || file.name.split('.').pop() || '').toLowerCase()
+        const isImage = ['jpg','jpeg','png','gif','bmp','webp','svg','tiff'].includes(extension)
+        const isAudio = ['mp3','wav','flac','aac','ogg','m4a','wma','opus'].includes(extension)
+        const isPdf = extension === 'pdf'
+
+        if (isImage) {
+          openWindow({
+            id: `viewer-${file.id}`,
+            title: file.name,
+            type: "file-viewer",
+            filePath: file.path,
+            position: { x: 150, y: 150 },
+            size: { width: 800, height: 600 },
+            isMinimized: false,
+            isMaximized: false,
+            zIndex: 1000,
+          })
+        } else if (isAudio) {
+          openWindow({
+            id: `music-${file.id}`,
+            title: file.name,
+            type: "mini-music-player",
+            filePath: file.path,
+            position: { x: 160, y: 160 },
+            size: { width: 380, height: 350 },
+            isMinimized: false,
+            isMaximized: false,
+            zIndex: 1000,
+          })
+        } else if (isPdf) {
+          // Ouvrir via le viewer inline du backend (dans une fenêtre viewer)
+          openWindow({
+            id: `viewer-${file.id}`,
+            title: file.name,
+            type: "file-viewer",
+            filePath: file.path,
+            position: { x: 170, y: 170 },
+            size: { width: 900, height: 700 },
+            isMinimized: false,
+            isMaximized: false,
+            zIndex: 1000,
+          })
+        } else {
+          // Par défaut, éditeur de texte
+          openWindow({
+            id: `editor-${file.id}`,
+            title: `${file.name} - Éditeur de texte`,
+            type: "text-editor",
+            filePath: file.path,
+            position: { x: 180, y: 180 },
+            size: { width: 800, height: 600 },
+            isMinimized: false,
+            isMaximized: false,
+            zIndex: 1000,
+          })
+        }
       }
     }
   }

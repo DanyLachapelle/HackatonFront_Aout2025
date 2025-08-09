@@ -337,54 +337,79 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   const handleFileDoubleClick = async (file: FileItem) => {
     if (file.type === "folder") {
       navigateTo(file.path)
-    } else {
-      const extension = file.extension?.toLowerCase()
-      
-      // Déterminer le type de fichier
-      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension || '')
-      const isTextFile = !isImage && extension !== 'mp3' && extension !== 'wav' && extension !== 'flac'
-      
-      if (isTextFile) {
-        // Ouvrir les fichiers texte dans l'éditeur
-        const { openWindow } = useWindowStore.getState()
-        openWindow({
-          id: `editor-${file.id}`,
-          title: `${file.name} - Éditeur de texte`,
-          type: "text-editor",
-          filePath: file.path,
-          position: { x: 150, y: 150 },
-          size: { width: 800, height: 600 },
-          isMinimized: false,
-          isMaximized: false,
-          zIndex: 1000,
-        })
-      } else if (isImage) {
-        // Ouvrir les images dans le visionneur
-        const fileType: 'text' | 'image' | 'folder' = 'image'
-        
-        try {
-          const imageUrl = await getImageUrl(file.path)
-          
-          const viewerFileData = {
-            name: file.name,
-            type: fileType,
-            size: file.size,
-            lastModified: file.modifiedAt,
-            content: undefined,
-            url: imageUrl
-          }
-          
-          setViewerFile(viewerFileData)
-          setShowFileViewer(true)
-        } catch (error) {
-          console.error('Erreur lors de l\'ouverture de l\'image:', error)
-          alert('Impossible d\'ouvrir cette image.')
-        }
-      } else {
-        // Pour les autres types de fichiers, afficher un message
-        alert(`Ce type de fichier (.${extension}) n'est pas encore supporté pour l'édition.`)
-      }
+      return
     }
+
+    const extension = (file.extension || file.name.split('.').pop() || '').toLowerCase()
+    const { openWindow } = useWindowStore.getState()
+
+    const isImage = ['jpg','jpeg','png','gif','bmp','webp','svg','tiff'].includes(extension)
+    const isAudio = ['mp3','wav','flac','aac','ogg','m4a','wma','opus'].includes(extension)
+    const isPdf = extension === 'pdf'
+
+    if (isImage) {
+      // Ouvrir dans le visionneur d'images
+      try {
+        const imageUrl = await getImageUrl(file.path)
+        setViewerFile({
+          name: file.name,
+          type: 'image',
+          size: file.size,
+          lastModified: file.modifiedAt,
+          url: imageUrl
+        })
+        setShowFileViewer(true)
+      } catch (error) {
+        console.error('Erreur lors de l\'ouverture de l\'image:', error)
+        alert('Impossible d\'ouvrir cette image.')
+      }
+      return
+    }
+
+    if (isAudio) {
+      // Ouvrir le mini lecteur de musique
+      openWindow({
+        id: `music-${file.id}`,
+        title: file.name,
+        type: "mini-music-player",
+        filePath: file.path,
+        position: { x: 160, y: 160 },
+        size: { width: 380, height: 350 },
+        isMinimized: false,
+        isMaximized: false,
+        zIndex: 1000,
+      })
+      return
+    }
+
+    if (isPdf) {
+      // Ouvrir via le viewer (il affichera le PDF en inline via backend)
+      openWindow({
+        id: `viewer-${file.id}`,
+        title: file.name,
+        type: "file-viewer",
+        filePath: file.path,
+        position: { x: 170, y: 170 },
+        size: { width: 900, height: 700 },
+        isMinimized: false,
+        isMaximized: false,
+        zIndex: 1000,
+      })
+      return
+    }
+
+    // Par défaut, ouvrir dans l'éditeur de texte
+    openWindow({
+      id: `editor-${file.id}`,
+      title: `${file.name} - Éditeur de texte`,
+      type: "text-editor",
+      filePath: file.path,
+      position: { x: 150, y: 150 },
+      size: { width: 800, height: 600 },
+      isMinimized: false,
+      isMaximized: false,
+      zIndex: 1000,
+    })
   }
 
   const handleContextMenu = (event: React.MouseEvent, file?: FileItem) => {

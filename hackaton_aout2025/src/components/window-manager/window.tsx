@@ -18,12 +18,13 @@ import { TextEditor } from "@/components/apps/text-editor"
 import { FileExplorer } from "@/components/apps/file-explorer"
 import { Terminal } from "@/components/apps/terminal"
 import { FileViewer } from "@/components/file-viewer/file-viewer"
+import { MiniMusicPlayer } from "@/components/apps/mini-music-player"
 
 // Composant pour afficher les fichiers
 function FileViewerWindow({ filePath, windowId }: { filePath?: string; windowId: string }) {
   const [file, setFile] = useState<{
     name: string
-    type: 'text' | 'image' | 'folder'
+    type: 'text' | 'image' | 'folder' | 'pdf'
     content?: string
     url?: string
     size?: number
@@ -40,15 +41,21 @@ function FileViewerWindow({ filePath, windowId }: { filePath?: string; windowId:
           const fileName = filePath.split('/').pop() || 'fichier'
           const extension = fileName.split('.').pop()?.toLowerCase()
           
-          let fileType: 'text' | 'image' | 'folder' = 'text'
+          let fileType: 'text' | 'image' | 'folder' | 'pdf' = 'text'
           let content = ''
           let url = ''
           
-          if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif' || extension === 'webp' || extension === 'bmp') {
+          const isImage = ['jpg','jpeg','png','gif','webp','bmp','svg','tiff'].includes(extension || '')
+          const isPdf = extension === 'pdf'
+          const isText = ['txt','md','json','js','ts','html','css','log','rtf'].includes(extension || '')
+
+          if (isImage) {
             fileType = 'image'
-            // Utiliser l'API backend pour récupérer l'URL de l'image avec inline=true pour l'affichage
             url = `http://localhost:8080/api/v2/files/download?path=${encodeURIComponent(filePath)}&userId=1&inline=true`
-          } else if (extension === 'txt' || extension === 'md' || extension === 'json' || extension === 'js' || extension === 'ts' || extension === 'html' || extension === 'css') {
+          } else if (isPdf) {
+            fileType = 'pdf'
+            url = `http://localhost:8080/api/v2/files/download?path=${encodeURIComponent(filePath)}&userId=1&inline=true`
+          } else if (isText) {
             fileType = 'text'
             // Charger le contenu du fichier depuis le backend
             try {
@@ -110,14 +117,14 @@ function FileViewerWindow({ filePath, windowId }: { filePath?: string; windowId:
     <div className="h-full flex flex-col bg-white dark:bg-gray-900">
       {/* En-tête simplifié */}
       <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3">
           <span className="text-lg">
-            {file.type === 'text' ? '📄' : file.type === 'image' ? '🖼️' : '📁'}
+            {file.type === 'text' ? '📄' : file.type === 'image' ? '🖼️' : file.type === 'pdf' ? '📄' : '📁'}
           </span>
           <div>
             <h2 className="font-semibold text-gray-900 dark:text-white">{file.name}</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {file.type === 'text' ? 'Fichier texte' : file.type === 'image' ? 'Image' : 'Dossier'}
+              {file.type === 'text' ? 'Fichier texte' : file.type === 'image' ? 'Image' : file.type === 'pdf' ? 'Document PDF' : 'Dossier'}
             </p>
           </div>
         </div>
@@ -153,6 +160,15 @@ function FileViewerWindow({ filePath, windowId }: { filePath?: string; windowId:
               src={file.url} 
               alt={file.name}
               className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+            />
+          </div>
+        )}
+        {file.type === 'pdf' && (
+          <div className="w-full h-full">
+            <iframe
+              title={file.name}
+              src={file.url}
+              className="w-full h-full border-0"
             />
           </div>
         )}
@@ -314,6 +330,8 @@ export function Window({ window }: WindowProps) {
         return <FileExplorer initialPath={window.initialPath} />
       case "file-viewer":
         return <FileViewerWindow filePath={window.filePath} windowId={window.id} />
+      case "mini-music-player":
+        return <MiniMusicPlayer windowId={window.id} filePath={window.filePath} fileName={window.title} />
       case "terminal":
         return <Terminal initialPath={window.initialPath} windowId={window.id} />
       default:
