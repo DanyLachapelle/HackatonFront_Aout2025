@@ -297,7 +297,7 @@ export function Window({ window }: WindowProps) {
       case "calculator":
         return <Calculator windowId={window.id} />
       case "clock":
-        return <Clock />
+        return <Clock windowId={window.id} />
       case "calendar":
         return <Calendar />
       case "settings":

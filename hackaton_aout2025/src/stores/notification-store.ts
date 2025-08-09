@@ -25,12 +25,14 @@ interface NotificationSettings {
 interface NotificationStore {
   notifications: Notification[]
   settings: NotificationSettings
+  notificationCounter: number
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void
   markAsRead: (id: string) => void
   markAllAsRead: () => void
   deleteNotification: (id: string) => void
   clearAllNotifications: () => void
   updateSettings: (settings: Partial<NotificationSettings>) => void
+  resetSettings: () => void
   getUnreadCount: () => number
   getNotificationsByCategory: (category: Notification['category']) => Notification[]
 }
@@ -67,6 +69,7 @@ export const useNotificationStore = create<NotificationStore>()(
           category: 'system'
         }
       ],
+      notificationCounter: 1000, // Compteur pour garantir des IDs uniques
       settings: {
         enabled: true,
         systemNotifications: true,
@@ -90,15 +93,19 @@ export const useNotificationStore = create<NotificationStore>()(
         if (category === 'calendar' && !settings.calendarNotifications) return
         if (category === 'timer' && !settings.timerNotifications) return
 
+        const currentState = get()
+        const uniqueId = `${Date.now()}-${currentState.notificationCounter}`
+        
         const newNotification: Notification = {
           ...notification,
-          id: Date.now().toString(),
+          id: uniqueId,
           timestamp: new Date(),
           read: false
         }
 
         set((state) => ({
-          notifications: [newNotification, ...state.notifications].slice(0, 50) // Limiter à 50 notifications
+          notifications: [newNotification, ...state.notifications].slice(0, 50), // Limiter à 50 notifications
+          notificationCounter: state.notificationCounter + 1 // Incrémenter le compteur
         }))
 
         // Jouer un son si activé
@@ -135,6 +142,22 @@ export const useNotificationStore = create<NotificationStore>()(
       updateSettings: (newSettings) => {
         set((state) => ({
           settings: { ...state.settings, ...newSettings }
+        }))
+      },
+
+      resetSettings: () => {
+        console.log('🔄 Réinitialisation des paramètres de notifications')
+        set((state) => ({
+          settings: {
+            enabled: true,
+            systemNotifications: true,
+            messageNotifications: true,
+            updateNotifications: true,
+            calendarNotifications: true,
+            timerNotifications: true,
+            position: 'bottom-right' as const,
+            sound: true
+          }
         }))
       },
 

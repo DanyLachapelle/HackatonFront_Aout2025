@@ -5,8 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useNotificationStore } from "@/stores/notification-store"
+import { useWindowStore } from "@/stores/window-store"
 
-export function Clock() {
+export function Clock({ windowId }: { windowId?: string }) {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [stopwatchTime, setStopwatchTime] = useState(0)
   const [timerTime, setTimerTime] = useState(0)
@@ -14,17 +15,33 @@ export function Clock() {
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [timerMinutesInput, setTimerMinutesInput] = useState("")
   const [timerSecondsInput, setTimerSecondsInput] = useState("")
-  const [timerName, setTimerName] = useState("Minuteur") // Nom du minuteur pour les notifications
   const [isAppInBackground, setIsAppInBackground] = useState(false) // État de l'application
+
+
+  const notificationSentRef = useRef(false) // Éviter les notifications doubles (protection synchrone)
   const stopwatchRef = useRef<number | null>(null)
   const timerRef = useRef<number | null>(null)
   
-  const { addNotification } = useNotificationStore()
+  const { addNotification, settings, updateSettings } = useNotificationStore()
+  const { windows } = useWindowStore()
+
+  // Vérifier et activer les notifications si nécessaire
+  useEffect(() => {
+    if (!settings.enabled) {
+      console.log('⚠️ Notifications désactivées - activation automatique')
+      updateSettings({ enabled: true })
+    }
+    if (!settings.timerNotifications) {
+      console.log('⚠️ Notifications minuteur désactivées - activation automatique')
+      updateSettings({ timerNotifications: true })
+    }
+  }, [settings.enabled, settings.timerNotifications, updateSettings])
 
   // Détecter si l'application est en arrière-plan
   useEffect(() => {
     const handleVisibilityChange = () => {
-      setIsAppInBackground(document.hidden)
+      const isHidden = document.hidden
+      setIsAppInBackground(isHidden)
     }
 
     const handleBlur = () => {
@@ -32,13 +49,19 @@ export function Clock() {
     }
 
     const handleFocus = () => {
-      setIsAppInBackground(false)
+      // Ne pas forcer false, vérifier d'abord document.hidden
+      const isHidden = document.hidden
+      setIsAppInBackground(isHidden)
     }
 
-    // Écouter les changements de visibilité de la page
+    // Initialiser l'état
+    const initialState = document.hidden
+    setIsAppInBackground(initialState)
+
+    // Utiliser visibilitychange comme méthode principale
     document.addEventListener('visibilitychange', handleVisibilityChange)
     
-    // Écouter les changements de focus de la fenêtre
+    // Ajouter blur/focus comme fallback au cas où visibilitychange ne fonctionnerait pas
     window.addEventListener('blur', handleBlur)
     window.addEventListener('focus', handleFocus)
 
@@ -77,12 +100,15 @@ export function Clock() {
     }
   }, [isStopwatchRunning])
 
+
+
   // Minuteur
   useEffect(() => {
     if (isTimerRunning && timerTime > 0) {
       timerRef.current = setInterval(() => {
         setTimerTime(prev => {
-          if (prev <= 1000) {
+          const newTime = prev - 1000
+          if (newTime <= 0) {
             setIsTimerRunning(false)
             // Jouer un son d'alarme
             playAlarmSound()
@@ -90,7 +116,7 @@ export function Clock() {
             sendTimerNotification()
             return 0
           }
-          return prev - 1000
+          return newTime
         })
       }, 1000)
     } else {
@@ -107,15 +133,27 @@ export function Clock() {
   }, [isTimerRunning, timerTime])
 
   const sendTimerNotification = () => {
-    // Envoyer la notification seulement si l'application est en arrière-plan
-    if (isAppInBackground) {
-      const minutes = Math.floor(timerTime / 60000)
-      const seconds = Math.floor((timerTime % 60000) / 1000)
-      const duration = minutes > 0 ? `${minutes} minute${minutes > 1 ? 's' : ''}` : `${seconds} seconde${seconds > 1 ? 's' : ''}`
+    // Éviter d'envoyer plusieurs notifications pour le même minuteur (protection synchrone)
+    if (notificationSentRef.current) {
+      return
+    }
+    
+    // Vérifier si l'onglet est en arrière-plan
+    const isCurrentlyHidden = document.hidden
+    
+    // Vérifier si la fenêtre horloge est minimisée
+    const clockWindow = windowId ? windows.find(w => w.id === windowId) : null
+    const isWindowMinimized = clockWindow?.isMinimized || false
+    
+    // Envoyer notification si l'onglet est en arrière-plan OU la fenêtre horloge est minimisée
+    const shouldSendNotification = isCurrentlyHidden || isAppInBackground || isWindowMinimized
+    
+    if (shouldSendNotification) {
+      notificationSentRef.current = true // Marquer comme envoyé (protection synchrone)
       
       addNotification({
-        title: `⏰ ${timerName} terminé`,
-        message: `Le minuteur de ${duration} est terminé !`,
+        title: '⏰ Minuteur terminé',
+        message: 'Le minuteur est terminé !',
         type: 'info',
         category: 'timer'
       })
@@ -176,6 +214,7 @@ export function Clock() {
 
   const startTimer = () => {
     if (timerTime > 0) {
+      notificationSentRef.current = false // Réinitialiser pour ce nouveau minuteur
       setIsTimerRunning(true)
     }
   }
@@ -190,6 +229,7 @@ export function Clock() {
     if (timerTime > 0) {
       setTimerTime(0)
       setIsTimerRunning(false)
+      notificationSentRef.current = false // Réinitialiser pour le prochain minuteur
     }
   }
 
@@ -203,12 +243,14 @@ export function Clock() {
       setTimerTime(totalMilliseconds)
       setTimerMinutesInput("")
       setTimerSecondsInput("")
+      notificationSentRef.current = false // Réinitialiser pour ce nouveau minuteur
     }
   }
 
   const quickTimer = (minutes: number, seconds: number = 0) => {
     const totalMilliseconds = (minutes * 60 + seconds) * 1000
     setTimerTime(totalMilliseconds)
+    notificationSentRef.current = false // Réinitialiser pour ce nouveau minuteur
     setIsTimerRunning(true)
   }
 
@@ -306,24 +348,11 @@ export function Clock() {
               </div>
 
               {/* Configuration du minuteur */}
-              <div className="space-y-2 w-full max-w-sm flex-shrink-0">
-                {/* Nom du minuteur */}
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="timer-name">Nom:</Label>
-                  <Input
-                    id="timer-name"
-                    type="text"
-                    value={timerName}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimerName(e.target.value)}
-                    className="flex-1"
-                    placeholder="Nom du minuteur"
-                  />
-                </div>
-                
+              <div className="space-y-2 w-full flex-shrink-0 flex flex-col items-center">
                 {/* Durée du minuteur - Minutes et Secondes */}
-                <div className="space-y-2">
-                  <Label>Durée:</Label>
-                  <div className="flex items-center space-x-2">
+                <div className="space-y-2 w-full max-w-sm">
+                  <Label className="block text-center">Durée:</Label>
+                  <div className="flex items-center justify-center space-x-2">
                     <div className="flex items-center space-x-1">
                       <Input
                         type="number"
@@ -356,6 +385,8 @@ export function Clock() {
                       Définir
                     </Button>
                   </div>
+
+
 
                 </div>
               </div>

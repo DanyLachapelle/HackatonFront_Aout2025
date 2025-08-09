@@ -77,17 +77,31 @@ export function NotificationToast({ notification, onClose, position }: Notificat
 }
 
 export function NotificationToaster() {
-  const { notifications, settings, deleteNotification } = useNotificationStore()
+  const { notifications, settings, markAsRead } = useNotificationStore()
   const [toasts, setToasts] = useState<Notification[]>([])
 
   useEffect(() => {
     // Filtrer les notifications non lues pour les afficher comme toasts
     const unreadNotifications = notifications.filter(n => !n.read)
     setToasts(unreadNotifications)
-  }, [notifications])
+
+    // Auto-dismiss des toasts après 5 secondes
+    if (unreadNotifications.length > 0) {
+      const timers = unreadNotifications.map(notification => 
+        setTimeout(() => {
+          markAsRead(notification.id)
+        }, 5000) // 5 secondes
+      )
+
+      return () => {
+        timers.forEach(timer => clearTimeout(timer))
+      }
+    }
+  }, [notifications, markAsRead])
 
   const handleClose = (id: string) => {
-    deleteNotification(id)
+    // Marquer comme lue pour cacher la pop-up (mais garder dans la liste)
+    markAsRead(id)
   }
 
   if (!settings.enabled || toasts.length === 0) return null
