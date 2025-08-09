@@ -188,6 +188,8 @@ class CalendarService {
     }
   }
 
+  //Love coding
+
   async getRemindersToSend(): Promise<EventReminder[]> {
     try {
       const response = await fetch(`${this.baseUrl}/reminders/to-send`)
@@ -197,7 +199,7 @@ class CalendarService {
       console.error('Erreur lors du chargement des rappels:', error)
       return []
     }
-  }
+  } 
 
   async markReminderAsSent(reminderId: number): Promise<boolean> {
     try {
