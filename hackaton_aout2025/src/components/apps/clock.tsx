@@ -12,7 +12,8 @@ export function Clock() {
   const [timerTime, setTimerTime] = useState(0)
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false)
   const [isTimerRunning, setIsTimerRunning] = useState(false)
-  const [timerInput, setTimerInput] = useState("")
+  const [timerMinutesInput, setTimerMinutesInput] = useState("")
+  const [timerSecondsInput, setTimerSecondsInput] = useState("")
   const [timerName, setTimerName] = useState("Minuteur") // Nom du minuteur pour les notifications
   const [isAppInBackground, setIsAppInBackground] = useState(false) // État de l'application
   const stopwatchRef = useRef<number | null>(null)
@@ -193,29 +194,37 @@ export function Clock() {
   }
 
   const setTimer = () => {
-    const minutes = parseInt(timerInput)
-    if (!isNaN(minutes) && minutes > 0) {
-      setTimerTime(minutes * 60000)
-      setTimerInput("")
+    const minutes = parseInt(timerMinutesInput) || 0
+    const seconds = parseInt(timerSecondsInput) || 0
+    
+    // Validation : au moins 1 seconde doit être définie
+    if ((minutes > 0 || seconds > 0) && minutes >= 0 && seconds >= 0 && seconds < 60) {
+      const totalMilliseconds = (minutes * 60 + seconds) * 1000
+      setTimerTime(totalMilliseconds)
+      setTimerMinutesInput("")
+      setTimerSecondsInput("")
     }
   }
 
-  const quickTimer = (minutes: number) => {
-    setTimerTime(minutes * 60000)
+  const quickTimer = (minutes: number, seconds: number = 0) => {
+    const totalMilliseconds = (minutes * 60 + seconds) * 1000
+    setTimerTime(totalMilliseconds)
     setIsTimerRunning(true)
   }
 
   return (
-    <div className="flex flex-col h-full p-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <Tabs defaultValue="clock" className="w-full h-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="clock">Horloge</TabsTrigger>
-          <TabsTrigger value="stopwatch">Chronomètre</TabsTrigger>
-          <TabsTrigger value="timer">Minuteur</TabsTrigger>
-        </TabsList>
+    <div className="flex flex-col h-full bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <Tabs defaultValue="clock" className="w-full h-full flex flex-col">
+        <div className="p-4 pb-2">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="clock">Horloge</TabsTrigger>
+            <TabsTrigger value="stopwatch">Chronomètre</TabsTrigger>
+            <TabsTrigger value="timer">Minuteur</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Horloge */}
-        <TabsContent value="clock" className="h-full">
+        <TabsContent value="clock" className="flex-1 px-4 pb-4 overflow-auto">
           <Card className="h-full">
             <CardHeader>
               <CardTitle className="text-center">Horloge</CardTitle>
@@ -250,7 +259,7 @@ export function Clock() {
         </TabsContent>
 
         {/* Chronomètre */}
-        <TabsContent value="stopwatch" className="h-full">
+        <TabsContent value="stopwatch" className="flex-1 px-4 pb-4 overflow-auto">
           <Card className="h-full">
             <CardHeader>
               <CardTitle className="text-center">Chronomètre</CardTitle>
@@ -283,21 +292,21 @@ export function Clock() {
         </TabsContent>
 
         {/* Minuteur */}
-        <TabsContent value="timer" className="h-full">
-          <Card className="h-full">
-            <CardHeader>
+        <TabsContent value="timer" className="flex-1 px-4 pb-4 overflow-auto">
+          <Card className="h-full min-h-0 flex flex-col">
+            <CardHeader className="pb-3 flex-shrink-0">
               <CardTitle className="text-center">Minuteur</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center h-full space-y-6">
+            <CardContent className="flex flex-col items-center space-y-3 overflow-auto flex-1 py-2">
               {/* Affichage du temps restant */}
-              <div className="text-center">
-                <div className="text-6xl font-mono text-gray-800 dark:text-white">
+              <div className="text-center flex-shrink-0">
+                <div className="text-4xl sm:text-6xl font-mono text-gray-800 dark:text-white">
                   {formatTimer(timerTime)}
                 </div>
               </div>
 
               {/* Configuration du minuteur */}
-              <div className="space-y-3 w-full max-w-xs">
+              <div className="space-y-2 w-full max-w-sm flex-shrink-0">
                 {/* Nom du minuteur */}
                 <div className="flex items-center space-x-2">
                   <Label htmlFor="timer-name">Nom:</Label>
@@ -311,26 +320,48 @@ export function Clock() {
                   />
                 </div>
                 
-                {/* Durée du minuteur */}
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="timer-input">Minutes:</Label>
-                  <Input
-                    id="timer-input"
-                    type="number"
-                    value={timerInput}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimerInput(e.target.value)}
-                    className="w-20"
-                    min="1"
-                    max="999"
-                  />
-                  <Button onClick={setTimer} disabled={!timerInput}>
-                    Définir
-                  </Button>
+                {/* Durée du minuteur - Minutes et Secondes */}
+                <div className="space-y-2">
+                  <Label>Durée:</Label>
+                  <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1">
+                      <Input
+                        type="number"
+                        value={timerMinutesInput}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimerMinutesInput(e.target.value)}
+                        className="w-16 text-center"
+                        min="0"
+                        max="999"
+                        placeholder="0"
+                      />
+                      <span className="text-sm text-gray-600">min</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Input
+                        type="number"
+                        value={timerSecondsInput}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimerSecondsInput(e.target.value)}
+                        className="w-16 text-center"
+                        min="0"
+                        max="59"
+                        placeholder="0"
+                      />
+                      <span className="text-sm text-gray-600">sec</span>
+                    </div>
+                    <Button 
+                      onClick={setTimer} 
+                      disabled={!timerMinutesInput && !timerSecondsInput}
+                      size="sm"
+                    >
+                      Définir
+                    </Button>
+                  </div>
+
                 </div>
               </div>
 
               {/* Boutons de contrôle */}
-              <div className="flex space-x-4">
+              <div className="flex space-x-4 flex-shrink-0">
                 {!isTimerRunning ? (
                   <Button onClick={startTimer} disabled={timerTime === 0} className="bg-green-500 hover:bg-green-600" title="Démarrer le minuteur">
                     Démarrer
@@ -346,58 +377,70 @@ export function Clock() {
               </div>
 
               {/* Minuteurs rapides */}
-              <div className="grid grid-cols-3 gap-2 w-full max-w-xs">
-                <Button 
-                  onClick={() => quickTimer(5)} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={isTimerRunning}
-                  title="Définir un minuteur de 5 minutes"
-                >
-                  5 min
-                </Button>
-                <Button 
-                  onClick={() => quickTimer(10)} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={isTimerRunning}
-                  title="Définir un minuteur de 10 minutes"
-                >
-                  10 min
-                </Button>
-                <Button 
-                  onClick={() => quickTimer(15)} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={isTimerRunning}
-                  title="Définir un minuteur de 15 minutes"
-                >
-                  15 min
-                </Button>
-                <Button 
-                  onClick={() => quickTimer(30)} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={isTimerRunning}
-                >
-                  30 min
-                </Button>
-                <Button 
-                  onClick={() => quickTimer(45)} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={isTimerRunning}
-                >
-                  45 min
-                </Button>
-                <Button 
-                  onClick={() => quickTimer(60)} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={isTimerRunning}
-                >
-                  1h
-                </Button>
+              <div className="space-y-2 w-full min-h-0">
+                <Label className="text-sm font-medium">Minuteurs rapides:</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-w-xs mx-auto">
+                  <Button 
+                    onClick={() => quickTimer(0, 30)} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isTimerRunning}
+                    title="Définir un minuteur de 30 secondes"
+                    className="text-xs h-8"
+                  >
+                    30s
+                  </Button>
+                  <Button 
+                    onClick={() => quickTimer(1, 0)} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isTimerRunning}
+                    title="Définir un minuteur de 1 minute"
+                    className="text-xs h-8"
+                  >
+                    1 min
+                  </Button>
+                  <Button 
+                    onClick={() => quickTimer(1, 30)} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isTimerRunning}
+                    title="Définir un minuteur de 1 minute 30 secondes"
+                    className="text-xs h-8"
+                  >
+                    1m30s
+                  </Button>
+                  <Button 
+                    onClick={() => quickTimer(5, 0)} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isTimerRunning}
+                    title="Définir un minuteur de 5 minutes"
+                    className="text-xs h-8"
+                  >
+                    5 min
+                  </Button>
+                  <Button 
+                    onClick={() => quickTimer(10, 0)} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isTimerRunning}
+                    title="Définir un minuteur de 10 minutes"
+                    className="text-xs h-8"
+                  >
+                    10 min
+                  </Button>
+                  <Button 
+                    onClick={() => quickTimer(15, 0)} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isTimerRunning}
+                    title="Définir un minuteur de 15 minutes"
+                    className="text-xs h-8"
+                  >
+                    15 min
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
