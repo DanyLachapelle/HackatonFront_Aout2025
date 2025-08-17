@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { SearchIcon, FolderIcon, FileIcon } from "lucide-react"
 import { useWindowStore } from "@/stores/window-store"
 import { getFileIconEmoji } from "@/lib/file-icons"
+import { useCustomAlert, CustomAlert } from "@/components/ui/custom-alert"
 
 interface SearchResult {
   id: string
@@ -25,6 +26,7 @@ export function SearchBar() {
   const [results, setResults] = useState<SearchResult[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const { openWindow } = useWindowStore()
+  const { showWarning, alert, hideAlert } = useCustomAlert()
 
   const searchableApps = [
     {
@@ -152,7 +154,7 @@ export function SearchBar() {
               })
             } else {
               // Pour les autres types de fichiers, afficher un message
-              alert(`Ce type de fichier (.${extension}) n'est pas encore supporté pour l'édition.`)
+              showWarning('Type de fichier non supporté', `Ce type de fichier (.${extension}) n'est pas encore supporté pour l'édition.`)
             }
             setQuery("")
             setIsOpen(false)
@@ -275,6 +277,7 @@ export function SearchBar() {
 
   return (
     <div className="relative">
+      <CustomAlert {...alert} onClose={hideAlert} />
       <div className="relative">
         <SearchIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input

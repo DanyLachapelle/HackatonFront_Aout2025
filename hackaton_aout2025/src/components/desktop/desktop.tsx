@@ -8,6 +8,7 @@ import type { DesktopApp } from "@/types/desktop-types"
 import { DesktopContextMenu } from "./desktop-context-menu"
 import { WallpaperSelector } from "./wallpaper-selector"
 import { fileService } from "@/services/file-service"
+import { useCustomAlert, CustomAlert } from "@/components/ui/custom-alert"
 
 export function Desktop() {
   const { files, loadFiles } = useFileStore()
@@ -26,6 +27,7 @@ export function Desktop() {
   } = useDesktopStore()
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selectedItem?: FileItem | null } | null>(null)
   const [selectedDesktopItems, setSelectedDesktopItems] = useState<string[]>([])
+  const { showError, alert, hideAlert } = useCustomAlert()
 
   // Gestionnaire d'événements clavier global pour le bureau
   useEffect(() => {
@@ -315,7 +317,7 @@ export function Desktop() {
       }, 100)
     } catch (error) {
       console.error('Erreur lors de l\'upload de fichiers:', error)
-      alert('Erreur lors de l\'ajout de fichiers au bureau')
+      showError('Erreur d\'ajout', 'Impossible d\'ajouter les fichiers au bureau. Veuillez réessayer.')
     }
   }, [loadDesktopFiles, desktopApps, desktopFiles, initializeIconPositions])
 
@@ -354,6 +356,7 @@ export function Desktop() {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
+      <CustomAlert {...alert} onClose={hideAlert} />
       {/* Applications Grid */}
       {allItems.map((item) => {
         const position = iconPositions[item.id]

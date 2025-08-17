@@ -5,6 +5,7 @@ import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, TrashIcon, BellIcon } from
 import { calendarService, type CalendarEvent } from "@/services/calendar-service"
 import { reminderService, type Reminder } from "@/services/reminder-service"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { useCustomAlert, CustomAlert } from "@/components/ui/custom-alert"
 
 interface Event {
   id: string
@@ -35,6 +36,7 @@ export function Calendar() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null) // ID de l'événement en cours de suppression
   const [showReminderDialog, setShowReminderDialog] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const { showError, showSuccess, alert, hideAlert } = useCustomAlert()
 
   // Charger les événements depuis le backend au démarrage
   useEffect(() => {
@@ -253,7 +255,7 @@ export function Calendar() {
         }
       } catch (error) {
         console.error('Erreur lors de la création de l\'événement:', error)
-        alert('Erreur lors de la création de l\'événement')
+        showError('Erreur de création', 'Impossible de créer l\'événement. Veuillez réessayer.')
       }
       
       setNewEvent({ 
@@ -302,14 +304,14 @@ export function Calendar() {
         await loadEventsFromBackend()
         
         // Afficher une notification de succès
-        alert('Événement supprimé avec succès')
+        showSuccess('Événement supprimé', 'L\'événement a été supprimé avec succès.')
       } else {
         console.error('Échec de la suppression de l\'événement dans le backend')
-        alert('Erreur lors de la suppression de l\'événement')
+        showError('Erreur de suppression', 'Impossible de supprimer l\'événement. Veuillez réessayer.')
       }
     } catch (error) {
       console.error('Erreur lors de la suppression de l\'événement:', error)
-      alert('Erreur lors de la suppression de l\'événement')
+      showError('Erreur de suppression', 'Une erreur inattendue s\'est produite lors de la suppression.')
     } finally {
       // Réinitialiser l'état de suppression
       setIsDeleting(null)
@@ -354,6 +356,7 @@ export function Calendar() {
   return (
     <ErrorBoundary>
       <div className="flex flex-col h-full overflow-hidden bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800">
+        <CustomAlert {...alert} onClose={hideAlert} />
         <Card className="h-full flex flex-col overflow-hidden">
         <CardHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">

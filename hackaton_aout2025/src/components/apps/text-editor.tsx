@@ -8,6 +8,7 @@ import {
   Search, Replace, Save, Download, Copy, Clipboard,
   Undo, Redo, ZoomIn, ZoomOut, Sun, Moon, X
 } from "lucide-react"
+import { useCustomAlert, CustomAlert } from "@/components/ui/custom-alert"
 
 interface TextDocument {
   id: string
@@ -45,6 +46,7 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
   const [redoStack, setRedoStack] = useState<string[]>([])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const { showError, showSuccess, alert, hideAlert } = useCustomAlert()
 
   // Charger le fichier si filePath est fourni
   useEffect(() => {
@@ -247,7 +249,7 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
       setDocuments(prev => prev.map(doc => doc.id === updatedDoc.id ? updatedDoc : doc))
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error)
-      alert('Erreur lors de la sauvegarde du fichier')
+      showError('Erreur de sauvegarde', 'Impossible de sauvegarder le fichier. Veuillez réessayer.')
     }
   }
 
@@ -287,6 +289,7 @@ export function TextEditor({ windowId, filePath }: TextEditorProps) {
   return (
     <TooltipProvider>
       <div className={`flex h-full overflow-hidden ${theme === 'dark' ? 'dark' : ''}`}>
+        <CustomAlert {...alert} onClose={hideAlert} />
         {/* Zone principale - Pleine largeur */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Barre d'outils */}

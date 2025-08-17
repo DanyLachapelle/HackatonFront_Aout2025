@@ -6,6 +6,7 @@ import { useWindowStore } from "@/stores/window-store"
 import { useDesktopStore } from "@/stores/desktop-store"
 import { fileService } from "@/services/file-service"
 import { cn } from "@/lib/utils"
+import { useCustomAlert, CustomAlert } from "@/components/ui/custom-alert"
 
 interface DesktopContextMenuProps {
   x: number
@@ -22,6 +23,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
   const { openWindow } = useWindowStore()
   const { refreshFiles } = useFileStore()
   const { refreshDesktopFiles, setIconSize, iconSize, reorganizeIcons } = useDesktopStore()
+  const { showError, showSuccess, alert, hideAlert } = useCustomAlert()
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -99,7 +101,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
                   }
                 }
                 
-                alert(errorMessage)
+                showError("Erreur d'ajout", errorMessage)
               }
             }
             
@@ -112,7 +114,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
           
         } catch (error) {
           console.error("Erreur lors du collage:", error)
-          alert("Erreur lors du collage des fichiers")
+          showError("Erreur de collage", "Impossible de coller les fichiers. Veuillez réessayer.")
         }
         break
       case "view-large":
@@ -166,7 +168,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
       await refreshDesktopFiles()
     } catch (error) {
       console.error('Erreur lors de la création du dossier:', error)
-      alert("Erreur lors de la création du dossier")
+      showError("Erreur de création", "Impossible de créer le dossier. Veuillez réessayer.")
     }
   }
 
@@ -193,7 +195,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
       await refreshDesktopFiles()
     } catch (error) {
       console.error('Erreur lors de la création du fichier:', error)
-      alert("Erreur lors de la création du fichier")
+      showError("Erreur de création", "Impossible de créer le fichier. Veuillez réessayer.")
     }
   }
 
@@ -214,7 +216,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
       console.log(`Élément "${item.name}" supprimé avec succès`)
     } catch (error) {
       console.error('Erreur lors de la suppression:', error)
-      alert("Erreur lors de la suppression de l'élément")
+      showError("Erreur de suppression", "Impossible de supprimer l'élément. Veuillez réessayer.")
     }
   }
 
@@ -235,7 +237,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
       console.log(`Élément renommé en "${newName}"`)
     } catch (error) {
       console.error('Erreur lors du renommage:', error)
-      alert("Erreur lors du renommage de l'élément")
+      showError("Erreur de renommage", "Impossible de renommer l'élément. Veuillez réessayer.")
     }
   }
 
@@ -248,6 +250,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
         top: y,
       }}
     >
+      <CustomAlert {...alert} onClose={hideAlert} />
       {/* Options d'affichage */}
       <div className="relative">
         <button
