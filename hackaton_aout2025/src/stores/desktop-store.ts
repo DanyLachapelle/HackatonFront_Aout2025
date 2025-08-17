@@ -23,14 +23,17 @@ interface DesktopStore {
   iconPositions: Record<string, IconPosition>
   desktopFiles: FileItem[]
   isLoadingDesktopFiles: boolean
+  iconSize: "small" | "medium" | "large"
   setWallpaper: (wallpaper: WallpaperConfig) => void
   setShowWallpaperSelector: (show: boolean) => void
+  setIconSize: (size: "small" | "medium" | "large") => void
   updateIconPosition: (id: string, position: IconPosition) => void
   initializeIconPositions: (items: (DesktopApp | FileItem)[]) => void
   loadDesktopFiles: () => Promise<void>
   refreshDesktopFiles: () => Promise<void>
   addFileToDesktop: (file: FileItem) => void
   removeFileFromDesktop: (fileId: string) => void
+  reorganizeIcons: () => void
 }
 
 export const useDesktopStore = create<DesktopStore>()(
@@ -45,8 +48,10 @@ export const useDesktopStore = create<DesktopStore>()(
       iconPositions: {},
       desktopFiles: [],
       isLoadingDesktopFiles: false,
+      iconSize: "medium",
       setWallpaper: (wallpaper) => set({ wallpaper }),
       setShowWallpaperSelector: (show) => set({ showWallpaperSelector: show }),
+      setIconSize: (size) => set({ iconSize: size }),
       updateIconPosition: (id, position) =>
         set((state) => ({
           iconPositions: {
@@ -55,11 +60,23 @@ export const useDesktopStore = create<DesktopStore>()(
           },
         })),
       initializeIconPositions: (items) => {
-        const { iconPositions } = get()
+        const { iconPositions, iconSize } = get()
         const newPositions: Record<string, IconPosition> = {}
         let needsUpdate = false
-        const gridGapY = 110
-        const gridGapX = 120
+        
+        // Ajuster l'espacement selon la taille des icônes
+        const getGridSpacing = () => {
+          switch (iconSize) {
+            case "small":
+              return { x: 80, y: 90 }
+            case "large":
+              return { x: 140, y: 130 }
+            default: // medium
+              return { x: 120, y: 110 }
+          }
+        }
+        
+        const { x: gridGapX, y: gridGapY } = getGridSpacing()
         const iconsPerColumn = Math.floor((window.innerHeight - 100) / gridGapY)
 
         items.forEach((item, index) => {
@@ -119,6 +136,38 @@ export const useDesktopStore = create<DesktopStore>()(
         set((state) => ({
           desktopFiles: state.desktopFiles.filter(f => f.id !== fileId)
         }))
+      },
+      reorganizeIcons: () => {
+        const { desktopFiles, iconSize } = get()
+        const allItems = [...desktopFiles] // Ajouter les apps si nécessaire
+        
+        // Ajuster l'espacement selon la taille des icônes
+        const getGridSpacing = () => {
+          switch (iconSize) {
+            case "small":
+              return { x: 80, y: 90 }
+            case "large":
+              return { x: 140, y: 130 }
+            default: // medium
+              return { x: 120, y: 110 }
+          }
+        }
+        
+        const { x: gridGapX, y: gridGapY } = getGridSpacing()
+        const iconsPerColumn = Math.floor((window.innerHeight - 100) / gridGapY)
+        
+        const newPositions: Record<string, IconPosition> = {}
+        
+        allItems.forEach((item, index) => {
+          const col = Math.floor(index / iconsPerColumn)
+          const row = index % iconsPerColumn
+          newPositions[item.id] = {
+            x: col * gridGapX + 20,
+            y: row * gridGapY + 20,
+          }
+        })
+        
+        set({ iconPositions: newPositions })
       },
     }),
     {

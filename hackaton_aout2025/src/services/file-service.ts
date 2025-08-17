@@ -277,18 +277,119 @@ class FileService {
 
   async uploadFile(parentPath: string, file: File): Promise<void> {
     try {
+      console.log(`📤 Service: Upload de "${file.name}" vers ${parentPath}`)
+      console.log(`📋 Détails du fichier:`, {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        lastModified: new Date(file.lastModified),
+        extension: file.name.split('.').pop()?.toLowerCase()
+      })
+      
+      // Vérifier si le contentType est correct pour les images
+      if (file.name.toLowerCase().endsWith('.png') && file.type !== 'image/png') {
+        console.warn(`⚠️ Type MIME incorrect pour PNG: "${file.type}" au lieu de "image/png"`)
+      }
+      if (file.name.toLowerCase().endsWith('.jpg') && file.type !== 'image/jpeg') {
+        console.warn(`⚠️ Type MIME incorrect pour JPG: "${file.type}" au lieu de "image/jpeg"`)
+      }
+      
       const formData = new FormData()
       formData.append('file', file)
       formData.append('parentPath', parentPath)
       formData.append('userId', this.userId.toString())
       
+      // Log des paramètres FormData pour debug
+      console.log(`📤 Paramètres FormData:`)
+      for (const [key, value] of formData.entries()) {
+        if (key === 'file') {
+          console.log(`  ${key}:`, {
+            name: (value as File).name,
+            type: (value as File).type,
+            size: (value as File).size
+          })
+        } else {
+          console.log(`  ${key}:`, value)
+        }
+      }
+      
+      console.log(`🌐 Envoi de la requête vers: ${this.baseUrl}/files/files/upload`)
+      console.log(`📤 Paramètres:`, {
+        parentPath,
+        userId: this.userId,
+        fileName: file.name,
+        contentType: file.type
+      })
+      
       const response = await fetch(`${this.baseUrl}/files/files/upload`, {
         method: 'POST',
         body: formData
       })
-      if (!response.ok) throw new Error('Erreur lors de l\'upload du fichier')
+      
+      console.log(`📡 Réponse du serveur:`, response.status, response.statusText)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`❌ Erreur HTTP ${response.status}:`, errorText)
+        console.error(`📋 Headers de réponse:`, Object.fromEntries(response.headers.entries()))
+        
+        // Solution temporaire pour diagnostiquer les erreurs 400 avec message vide
+        if (response.status === 400 && (!errorText || errorText.trim() === "")) {
+          console.error(`🔍 DIAGNOSTIC - Erreur 400 avec message vide:`)
+          console.error(`  • URL: ${this.baseUrl}/files/files/upload`)
+          console.error(`  • Méthode: POST`)
+          console.error(`  • ParentPath: ${parentPath}`)
+          console.error(`  • UserId: ${this.userId}`)
+          console.error(`  • FileName: ${file.name}`)
+          console.error(`  • FileType: ${file.type}`)
+          console.error(`  • FileSize: ${file.size}`)
+          console.error(`  • ContentType: ${file.type}`)
+          console.error(`  • Extension: ${file.name.split('.').pop()?.toLowerCase()}`)
+          
+          // Vérifier si c'est un problème de contentType
+          const extension = file.name.split('.').pop()?.toLowerCase()
+          if (extension === 'png' && file.type !== 'image/png') {
+            console.error(`  ⚠️ PROBLÈME DÉTECTÉ: Type MIME incorrect pour PNG`)
+            console.error(`     Attendu: image/png, Reçu: ${file.type}`)
+          }
+          
+          // Vérifier si c'est un problème de dossier système
+          if (parentPath === '/images' && !file.type?.startsWith('image/')) {
+            console.error(`  ⚠️ PROBLÈME DÉTECTÉ: Type non autorisé dans /images`)
+            console.error(`     Dossier: ${parentPath}, Type: ${file.type}`)
+          }
+        }
+        
+        // Analyser l'erreur pour donner plus de détails
+        let errorMessage = `Erreur lors de l'upload du fichier: ${response.status} ${response.statusText}`
+        
+        if (response.status === 400) {
+          if (errorText.includes("Type de fichier non autorisé")) {
+            errorMessage = `Type de fichier non autorisé dans ce dossier.\n\nFichier: ${file.name}\nType MIME: ${file.type}\nDossier: ${parentPath}`
+          } else if (errorText.includes("existe déjà")) {
+            errorMessage = `Un fichier avec le nom "${file.name}" existe déjà dans ce dossier.`
+          } else if (errorText.includes("Dossier parent non trouvé")) {
+            errorMessage = `Le dossier de destination "${parentPath}" n'existe pas ou n'est pas accessible.`
+          } else if (errorText.trim() === "") {
+            errorMessage = `Erreur 400 - Requête invalide.\n\nDétails:\n• Fichier: ${file.name}\n• Type MIME: ${file.type}\n• Taille: ${file.size} bytes\n• Dossier: ${parentPath}\n• Message d'erreur: Aucun détail fourni par le serveur\n\nDiagnostic:\n• Extension: ${file.name.split('.').pop()?.toLowerCase()}\n• ContentType attendu pour PNG: image/png\n• ContentType reçu: ${file.type}`
+          } else {
+            errorMessage = `Erreur 400: ${errorText}`
+          }
+        } else if (errorText.includes("Type de fichier non autorisé")) {
+          errorMessage = `Type de fichier non autorisé dans ce dossier.\n\nFichier: ${file.name}\nType MIME: ${file.type}\nDossier: ${parentPath}`
+        } else if (errorText.includes("existe déjà")) {
+          errorMessage = `Un fichier avec le nom "${file.name}" existe déjà dans ce dossier.`
+        } else if (errorText.includes("Dossier parent non trouvé")) {
+          errorMessage = `Le dossier de destination "${parentPath}" n'existe pas ou n'est pas accessible.`
+        }
+        
+        throw new Error(errorMessage)
+      }
+      
+      const result = await response.json()
+      console.log(`✅ Upload réussi:`, result)
     } catch (error) {
-      console.error('Erreur lors de l\'upload du fichier:', error)
+      console.error('❌ Erreur lors de l\'upload du fichier:', error)
       throw error
     }
   }
@@ -320,7 +421,13 @@ class FileService {
   async moveOrCopyFile(sourcePath: string, targetDir: string, action: 'copy' | 'move'): Promise<void> {
     // Télécharger contenu puis recréer (texte uniquement pour l'instant)
     const content = await this.getFileContent(sourcePath)
-    const name = sourcePath.split('/').pop() || 'fichier'
+    let name = sourcePath.split('/').pop() || 'fichier'
+    
+    // Forcer l'extension .txt pour les fichiers texte
+    if (!name.toLowerCase().endsWith('.txt')) {
+      name += '.txt'
+    }
+    
     await this.createFile(targetDir, name, content)
     if (action === 'move') {
       await this.deleteFile(sourcePath)

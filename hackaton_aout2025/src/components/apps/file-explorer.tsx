@@ -41,6 +41,7 @@ import {
 } from "lucide-react"
 import JSZip from "jszip"
 import { useWindowStore } from "@/stores/window-store"
+import { useCustomAlert, CustomAlert } from "@/components/ui/custom-alert"
 
 // Utilise le type FileItem importé depuis les types
 
@@ -67,17 +68,21 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   const [newItemName, setNewItemName] = useState("")
   const [showDetails, setShowDetails] = useState(false)
   const [detailsItem, setDetailsItem] = useState<FileItem | null>(null)
-  const [showFileViewer, setShowFileViewer] = useState(false)
-  const [viewerFile, setViewerFile] = useState<{
-    name: string
-    type: 'text' | 'image' | 'folder'
-    content?: string
-    url?: string
-    size?: number
-    lastModified?: Date
-  } | null>(null)
+
+  // États pour les sous-menus du menu contextuel
+  const [showNewSubmenu, setShowNewSubmenu] = useState(false)
+  const [showViewSubmenu, setShowViewSubmenu] = useState(false)
+
+  // États pour la sélection par glisser-déposer
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [dragEnd, setDragEnd] = useState({ x: 0, y: 0 })
+  const [dragSelection, setDragSelection] = useState<string[]>([])
 
   const fileExplorerRef = useRef<HTMLDivElement>(null)
+
+  // Hook pour l'alerte personnalisée
+  const { alert, showError, showSuccess, showWarning, hideAlert } = useCustomAlert()
 
   // Charger les fichiers depuis le backend
   const loadFiles = async (path: string) => {
@@ -132,44 +137,106 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
 
   // Gestion des raccourcis clavier
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case "a":
-            e.preventDefault()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case 'a':
+            event.preventDefault()
             selectAll()
             break
-          case "c":
-            e.preventDefault()
+          case 'c':
+            event.preventDefault()
             copySelected()
             break
-          case "x":
-            e.preventDefault()
+          case 'x':
+            event.preventDefault()
             cutSelected()
             break
-          case "v":
-            e.preventDefault()
+          case 'v':
+            event.preventDefault()
             pasteFiles()
             break
-          case "Delete":
-          case "Backspace":
-            e.preventDefault()
-            deleteSelected()
-            break
-          case "z":
-            e.preventDefault()
+          case 'z':
+            event.preventDefault()
             createArchive()
             break
         }
-      } else if (e.key === "F5") {
-        e.preventDefault()
-        refreshCurrentFolder()
+      } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault()
+        deleteSelected()
+      } else if (event.key === 'Escape') {
+        setSelectedFiles([])
+        setShowContextMenu(false)
       }
     }
 
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [selectedFiles, clipboard])
+
+  // Gestionnaires d'événements globaux pour le drag selection
+  useEffect(() => {
+    const handleGlobalMouseMove = (event: MouseEvent) => {
+      if (isDragging) {
+        setDragEnd({ x: event.clientX, y: event.clientY })
+        
+        // Calculer les éléments dans la zone de sélection
+        const container = fileExplorerRef.current
+        if (container) {
+          const containerRect = container.getBoundingClientRect()
+          const startX = Math.min(dragStart.x, event.clientX)
+          const endX = Math.max(dragStart.x, event.clientX)
+          const startY = Math.min(dragStart.y, event.clientY)
+          const endY = Math.max(dragStart.y, event.clientY)
+          
+          const selectedIds: string[] = []
+          const fileElements = container.querySelectorAll('[data-file-id]')
+          
+          fileElements.forEach((element) => {
+            const elementRect = element.getBoundingClientRect()
+            const fileId = element.getAttribute('data-file-id')
+            
+            if (fileId && 
+                elementRect.left < endX && 
+                elementRect.right > startX && 
+                elementRect.top < endY && 
+                elementRect.bottom > startY) {
+              selectedIds.push(fileId)
+            }
+          })
+          
+          setDragSelection(selectedIds)
+        }
+      }
+    }
+
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false)
+        
+        // Appliquer la sélection par drag
+        if (dragSelection.length > 0) {
+          setSelectedFiles(prev => {
+            // Combiner avec la sélection existante si Ctrl/Cmd est pressé
+            const combined = [...new Set([...prev, ...dragSelection])]
+            return combined
+          })
+        }
+        
+        setDragSelection([])
+      }
+    }
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove)
+      document.addEventListener('mouseup', handleGlobalMouseUp)
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove)
+      document.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [isDragging, dragStart, dragSelection])
 
   const getFileIcon = (file: FileItem) => {
     // Icônes spéciales pour les dossiers système
@@ -334,6 +401,68 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     }
   }
 
+  // Fonctions pour la sélection par glisser-déposer
+  const handleMouseDown = (event: React.MouseEvent) => {
+    // Ne démarrer le drag que si on clique sur l'espace vide (pas sur un fichier)
+    if (event.target === event.currentTarget) {
+      setIsDragging(true)
+      setDragStart({ x: event.clientX, y: event.clientY })
+      setDragEnd({ x: event.clientX, y: event.clientY })
+      setDragSelection([])
+    }
+  }
+
+  const handleMouseMove = (event: React.MouseEvent) => {
+    if (isDragging) {
+      setDragEnd({ x: event.clientX, y: event.clientY })
+      
+      // Calculer les éléments dans la zone de sélection
+      const container = fileExplorerRef.current
+      if (container) {
+        const containerRect = container.getBoundingClientRect()
+        const startX = Math.min(dragStart.x, event.clientX)
+        const endX = Math.max(dragStart.x, event.clientX)
+        const startY = Math.min(dragStart.y, event.clientY)
+        const endY = Math.max(dragStart.y, event.clientY)
+        
+        const selectedIds: string[] = []
+        const fileElements = container.querySelectorAll('[data-file-id]')
+        
+        fileElements.forEach((element) => {
+          const elementRect = element.getBoundingClientRect()
+          const fileId = element.getAttribute('data-file-id')
+          
+          if (fileId && 
+              elementRect.left < endX && 
+              elementRect.right > startX && 
+              elementRect.top < endY && 
+              elementRect.bottom > startY) {
+            selectedIds.push(fileId)
+          }
+        })
+        
+        setDragSelection(selectedIds)
+      }
+    }
+  }
+
+  const handleMouseUp = () => {
+    if (isDragging) {
+      setIsDragging(false)
+      
+      // Appliquer la sélection par drag
+      if (dragSelection.length > 0) {
+        setSelectedFiles(prev => {
+          // Combiner avec la sélection existante si Ctrl/Cmd est pressé
+          const combined = [...new Set([...prev, ...dragSelection])]
+          return combined
+        })
+      }
+      
+      setDragSelection([])
+    }
+  }
+
   const handleFileDoubleClick = async (file: FileItem) => {
     if (file.type === "folder") {
       navigateTo(file.path)
@@ -348,26 +477,23 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     const isPdf = extension === 'pdf'
 
     if (isImage) {
-      // Ouvrir dans le visionneur d'images
-      try {
-        const imageUrl = await getImageUrl(file.path)
-        setViewerFile({
-          name: file.name,
-          type: 'image',
-          size: file.size,
-          lastModified: file.modifiedAt,
-          url: imageUrl
-        })
-        setShowFileViewer(true)
-      } catch (error) {
-        console.error('Erreur lors de l\'ouverture de l\'image:', error)
-        alert('Impossible d\'ouvrir cette image.')
-      }
+      // Ouvrir dans le visionneur d'images (même méthode que le bureau)
+      openWindow({
+        id: `viewer-${file.id}`,
+        title: file.name,
+        type: "file-viewer",
+        filePath: file.path,
+        position: { x: 150, y: 150 },
+        size: { width: 800, height: 600 },
+        isMinimized: false,
+        isMaximized: false,
+        zIndex: 1000,
+      })
       return
     }
 
     if (isAudio) {
-      // Ouvrir le mini lecteur de musique
+      // Ouvrir le lecteur de musique (même méthode que le bureau)
       openWindow({
         id: `music-${file.id}`,
         title: file.name,
@@ -444,7 +570,13 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
         if (item.type === 'file') {
           // Télécharger contenu puis recréer
           const content = await fileService.getFileContent(item.path)
-          const newName = item.name
+          let newName = item.name
+          
+          // Forcer l'extension .txt pour les fichiers créés dans l'éditeur
+          if (!newName.toLowerCase().endsWith('.txt')) {
+            newName += '.txt'
+          }
+          
           await fileService.createFile(targetPath, newName, content)
           if (isCut) {
             await fileService.deleteFile(item.path)
@@ -464,7 +596,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       }
     } catch (error) {
       console.error('Erreur lors du collage:', error)
-      alert('Coller a échoué. Déplacement/copie récursive non pris en charge pour le moment.')
+      showError('Coller a échoué. Déplacement/copie récursive non pris en charge pour le moment.', 'Erreur de collage')
     }
   }
 
@@ -500,12 +632,12 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
         console.log(`${selectedItems.length} élément(s) supprimé(s) avec succès`)
       } catch (error) {
         console.error('Erreur lors de la suppression:', error)
-        alert(`Erreur lors de la suppression: ${error}`)
+        showError(`Erreur lors de la suppression: ${error}`, 'Erreur de suppression')
       }
     }
   }
 
-  const createArchive = () => {
+  const createArchive = async () => {
     if (selectedFiles.length === 0) return
     
     const selectedItems = files.filter(f => selectedFiles.includes(f.id))
@@ -513,19 +645,29 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     const zip = new JSZip()
 
     // Fonction pour ajouter récursivement les fichiers et dossiers
-    const addToZip = (items: FileItem[], basePath: string = '') => {
-      items.forEach(file => {
+    const addToZip = async (items: FileItem[], basePath: string = '') => {
+      for (const file of items) {
         const filePath = basePath ? `${basePath}/${file.name}` : file.name
         
         if (file.type === 'file') {
-          // Pour les images, on simule le contenu binaire
-          if (['jpg', 'jpeg', 'png', 'gif'].includes(file.extension || '')) {
-            // Créer un contenu simulé pour les images (en réalité, ce serait le vrai contenu binaire)
-            const imageContent = `# Image: ${file.name}\n# Taille: ${formatFileSize(file.size)}\n# Type: ${file.extension}\n# URL simulée: ${getImageUrl(file.name)}\n\nCeci est une simulation du contenu de l'image ${file.name}.`
+          try {
+            // Récupérer le contenu réel du fichier depuis le backend
+            const content = await fileService.getFileContent(file.path)
+            
+            // Pour les images et fichiers binaires, on utilise le contenu texte
+            // En production, il faudrait récupérer le vrai contenu binaire
+            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff'].includes(file.extension || '')) {
+              // Créer un contenu simulé pour les images
+              const imageContent = `# Image: ${file.name}\n# Taille: ${formatFileSize(file.size)}\n# Type: ${file.extension}\n# Contenu simulé pour l'image ${file.name}`
             zip.file(filePath, imageContent)
           } else {
-            // Pour les fichiers texte, on utilise le contenu réel
-            zip.file(filePath, getFileContent(file.name, file.extension))
+              // Pour les fichiers texte, utiliser le contenu réel
+              zip.file(filePath, content)
+            }
+          } catch (error) {
+            console.error(`Erreur lors de la récupération du contenu de ${file.name}:`, error)
+            // Ajouter un fichier d'erreur dans l'archive
+            zip.file(`${filePath}.error`, `Erreur lors de la récupération du contenu: ${error}`)
           }
         } else if (file.type === 'folder') {
           // Créer le dossier dans le ZIP
@@ -534,11 +676,12 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
           // Ajouter un fichier .gitkeep pour maintenir la structure du dossier
           zip.file(`${filePath}/.gitkeep`, '')
         }
-      })
+      }
     }
 
+    try {
     // Ajouter tous les éléments sélectionnés
-    addToZip(selectedItems)
+      await addToZip(selectedItems)
 
     // Ajouter un fichier README avec les informations de l'archive
     const readmeContent = `# Archive créée le ${new Date().toLocaleDateString('fr-FR')}
@@ -553,27 +696,28 @@ ${selectedItems.map(item => `- ${item.name} (${item.type === 'file' ? 'fichier' 
 
 ## Note:
 Cette archive a été créée depuis l'explorateur de fichiers de l'application AEMT.
+Les fichiers texte contiennent leur contenu réel, les images sont simulées.
 `
 
+      zip.file('README.txt', readmeContent)
 
-    zip.generateAsync({ type: "blob" })
-      .then(content => {
+      // Générer l'archive
+      const content = await zip.generateAsync({ type: "blob" })
         const blob = new Blob([content], { type: "application/zip" })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `archive_${new Date().toISOString().slice(0, 10)}.zip`
+      a.download = `archive_${new Date().toISOString().slice(0, 10)}_${selectedItems.length}_fichiers.zip`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
 
-        alert(`Archive ZIP créée avec succès !\n\nNom: ${a.download}\nFichiers: ${selectedItems.length}\nTaille totale: ${formatFileSize(selectedItems.reduce((sum, f) => sum + f.size, 0))}\n\nL'archive contient maintenant de vrais fichiers ZIP que Windows peut ouvrir !`)
-      })
-      .catch(error => {
+      showSuccess(`✅ Archive ZIP créée avec succès !`, `Nom: ${a.download}\nFichiers: ${selectedItems.length}\nTaille: ${formatFileSize(selectedItems.reduce((sum, f) => sum + f.size, 0))}\nL'archive contient maintenant les vrais fichiers que vous pouvez ouvrir !`)
+    } catch (error) {
         console.error("Erreur lors de la création de l'archive:", error)
-        alert("Erreur lors de la création de l'archive.")
-      })
+      showError("❌ Erreur lors de la création de l'archive.", 'Erreur d\'archive')
+    }
   }
 
   const refreshCurrentFolder = () => {
@@ -587,7 +731,7 @@ Cette archive a été créée depuis l'explorateur de fichiers de l'application 
     
     // Empêcher la création à la racine
     if (currentPath === "/") {
-      alert("Impossible de créer des fichiers ou dossiers à la racine. Utilisez les dossiers système existants.")
+      showError("Impossible de créer des fichiers ou dossiers à la racine.", "Utilisez les dossiers système existants.")
       setNewItemName("")
       setShowCreateDialog(false)
       return
@@ -600,7 +744,12 @@ Cette archive a été créée depuis l'explorateur de fichiers de l'application 
         await fileService.createFolder(currentPath, newItemName)
         console.log('Dossier créé avec succès côté backend')
       } else {
-        await fileService.createFile(currentPath, newItemName, "")
+        // Forcer l'extension .txt pour les fichiers créés dans l'explorateur
+        let fileName = newItemName
+        if (!fileName.toLowerCase().endsWith('.txt')) {
+          fileName += '.txt'
+        }
+        await fileService.createFile(currentPath, fileName, "")
         console.log('Fichier créé avec succès côté backend')
       }
       
@@ -627,7 +776,238 @@ Cette archive a été créée depuis l'explorateur de fichiers de l'application 
       setShowCreateDialog(false)
     } catch (error) {
       console.error('Erreur lors de la création:', error)
-      alert(`Erreur lors de la création du ${createType === "folder" ? "dossier" : "fichier"}: ${error}`)
+      showError(`Erreur lors de la création du ${createType === "folder" ? "dossier" : "fichier"}: ${error}`, 'Erreur de création')
+    }
+  }
+
+  // Fonctions pour le menu contextuel
+  const createNewFileFromContext = async () => {
+    try {
+      const fileName = prompt("Nom du nouveau fichier:")
+      if (!fileName || fileName.trim() === "") return
+
+      // Empêcher la création à la racine
+      if (currentPath === "/") {
+        showError("Impossible de créer des fichiers à la racine.", "Utilisez les dossiers système existants.")
+        return
+      }
+
+      // Forcer l'extension .txt si elle n'est pas présente
+      let finalFileName = fileName.trim()
+      if (!finalFileName.toLowerCase().endsWith('.txt')) {
+        finalFileName += '.txt'
+      }
+
+      await fileService.createFile(currentPath, finalFileName, "")
+      
+      // Recharger les fichiers
+      await loadFiles(currentPath)
+      
+      // Si on est dans le dossier Bureau, rafraîchir le bureau
+      if (currentPath === '/bureau') {
+        await refreshDesktopFiles()
+      }
+      
+      setShowContextMenu(false)
+    } catch (error) {
+      console.error('Erreur lors de la création du fichier:', error)
+      showError("Erreur lors de la création du fichier", 'Erreur de fichier')
+    }
+  }
+
+  const createNewFolderFromContext = async () => {
+    try {
+      const folderName = prompt("Nom du nouveau dossier:")
+      if (!folderName || folderName.trim() === "") return
+
+      // Empêcher la création à la racine
+      if (currentPath === "/") {
+        showError("Impossible de créer des dossiers à la racine.", "Utilisez les dossiers système existants.")
+        return
+      }
+
+      await fileService.createFolder(currentPath, folderName.trim())
+      
+      // Recharger les fichiers
+      await loadFiles(currentPath)
+      
+      // Si on est dans le dossier Bureau, rafraîchir le bureau
+      if (currentPath === '/bureau') {
+        await refreshDesktopFiles()
+      }
+      
+      setShowContextMenu(false)
+    } catch (error) {
+      console.error('Erreur lors de la création du dossier:', error)
+      showError("Erreur lors de la création du dossier", 'Erreur de dossier')
+    }
+  }
+
+  const addFilesFromComputer = async () => {
+    try {
+      // Empêcher l'ajout à la racine
+      if (currentPath === "/") {
+        showError("Opération non autorisée", "Impossible d'ajouter des fichiers à la racine. Utilisez les dossiers système existants.")
+        return
+      }
+
+      // Créer un input file caché pour permettre la sélection de fichiers
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.multiple = true
+      input.style.display = 'none'
+      
+      // Ajouter l'input au DOM
+      document.body.appendChild(input)
+      
+      // Écouter les changements
+      input.onchange = async (event) => {
+        const files = (event.target as HTMLInputElement).files
+        if (files && files.length > 0) {
+          try {
+            console.log(`📤 Upload de ${files.length} fichier(s) vers ${currentPath}`)
+            
+            // Upload chaque fichier vers le dossier courant
+            for (let i = 0; i < files.length; i++) {
+              const file = files[i]
+              console.log(`📁 Fichier ${i + 1}/${files.length}:`, {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                lastModified: new Date(file.lastModified)
+              })
+              
+              // Corriger le contentType si nécessaire pour les images
+              const correctedFile = correctFileContentType(file)
+              
+              try {
+                await fileService.uploadFile(currentPath, correctedFile)
+                console.log(`✅ Fichier "${file.name}" uploadé avec succès`)
+              } catch (uploadError) {
+                console.error(`❌ Erreur lors de l'upload de "${file.name}":`, uploadError)
+                
+                // Afficher un message d'erreur spécifique
+                let errorMessage = `Erreur lors de l'upload de "${file.name}"`
+                let errorTitle = "Erreur d'upload"
+                
+                if (uploadError instanceof Error) {
+                  if (uploadError.message.includes("Type de fichier non autorisé")) {
+                    errorTitle = "Type de fichier non autorisé"
+                    errorMessage = `Le type de fichier "${file.type}" n'est pas autorisé dans ce dossier.\n\nTypes autorisés :\n${getAllowedFileTypes(currentPath)}\n\nDétails du fichier :\n• Nom : ${file.name}\n• Type MIME : ${file.type || 'Non détecté'}\n• Extension : ${file.name.split('.').pop()?.toLowerCase() || 'Aucune'}\n• Taille : ${formatFileSize(file.size)}`
+                  } else if (uploadError.message.includes("existe déjà")) {
+                    errorTitle = "Fichier existant"
+                    errorMessage = `Un fichier avec le nom "${file.name}" existe déjà dans ce dossier.\n\nVeuillez renommer le fichier ou le supprimer d'abord.`
+                  } else if (uploadError.message.includes("Dossier parent non trouvé")) {
+                    errorTitle = "Dossier introuvable"
+                    errorMessage = `Le dossier de destination n'existe pas ou n'est pas accessible.\n\nChemin : ${currentPath}`
+                  } else if (uploadError.message.includes("Taille de fichier")) {
+                    errorTitle = "Fichier trop volumineux"
+                    errorMessage = `Le fichier "${file.name}" est trop volumineux.\n\nTaille : ${formatFileSize(file.size)}\nTaille maximale : 10 MB`
+                  } else {
+                    errorMessage = uploadError.message
+                  }
+                }
+                
+                showError(errorTitle, errorMessage)
+              }
+            }
+            
+            // Recharger les fichiers
+            console.log('🔄 Rechargement des fichiers...')
+            await loadFiles(currentPath)
+            
+            // Si on est dans le dossier Bureau, rafraîchir le bureau
+            if (currentPath === '/bureau') {
+              await refreshDesktopFiles()
+            }
+            
+            console.log(`✅ Upload terminé - ${files.length} fichier(s) traités`)
+          } catch (error) {
+            console.error("❌ Erreur générale lors de l'upload:", error)
+            showError("Erreur générale", "Une erreur inattendue s'est produite lors de l'ajout des fichiers.")
+          }
+        }
+        
+        // Nettoyer l'input
+        document.body.removeChild(input)
+      }
+      
+      // Déclencher la sélection de fichiers
+      input.click()
+      
+      setShowContextMenu(false)
+    } catch (error) {
+      console.error("❌ Erreur lors de l'ajout de fichiers:", error)
+      showError("Erreur", "Erreur lors de l'ajout de fichiers")
+    }
+  }
+
+  // Fonction pour corriger le contentType des fichiers si nécessaire
+  const correctFileContentType = (file: File): File => {
+    const extension = file.name.split('.').pop()?.toLowerCase()
+    
+    // Si le contentType est vide ou incorrect, le corriger
+    if (!file.type || file.type === 'application/octet-stream') {
+      const correctedType = getContentTypeFromExtension(extension)
+      if (correctedType) {
+        console.log(`🔧 Correction du contentType pour ${file.name}: "${file.type}" → "${correctedType}"`)
+        
+        // Créer un nouveau fichier avec le bon contentType
+        const correctedFile = new File([file], file.name, {
+          type: correctedType,
+          lastModified: file.lastModified
+        })
+        
+        return correctedFile
+      }
+    }
+    
+    return file
+  }
+
+  // Fonction pour obtenir le contentType à partir de l'extension
+  const getContentTypeFromExtension = (extension?: string): string | null => {
+    if (!extension) return null
+    
+    const contentTypeMap: { [key: string]: string } = {
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'bmp': 'image/bmp',
+      'svg': 'image/svg+xml',
+      'webp': 'image/webp',
+      'txt': 'text/plain',
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'ppt': 'application/vnd.ms-powerpoint',
+      'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'mp3': 'audio/mpeg',
+      'wav': 'audio/wav',
+      'flac': 'audio/flac',
+      'aac': 'audio/aac',
+      'ogg': 'audio/ogg'
+    }
+    
+    return contentTypeMap[extension] || null
+  }
+
+  // Fonction pour obtenir les types de fichiers autorisés selon le dossier
+  const getAllowedFileTypes = (path: string): string => {
+    switch (path.toLowerCase()) {
+      case '/images':
+        return "• Images (PNG, JPG, JPEG, GIF, BMP, SVG)\n• Types MIME : image/*"
+      case '/musique':
+        return "• Audio (MP3, WAV, FLAC, AAC, OGG)\n• Types MIME : audio/*"
+      case '/documents':
+        return "• Tous les types de fichiers autorisés\n• Documents, images, musique, vidéos, etc."
+      case '/bureau':
+        return "• Tous les types de fichiers autorisés"
+      default:
+        return "• Tous les types de fichiers autorisés"
     }
   }
 
@@ -905,20 +1285,7 @@ Vous pouvez toujours :
     }
   }
 
-  // Fonction pour obtenir l'URL d'une image
-  const getImageUrl = async (filePath: string): Promise<string> => {
-    try {
-      console.log(`Téléchargement de l'image: ${filePath}`)
-      const blob = await fileService.downloadFile(filePath)
-      const url = URL.createObjectURL(blob)
-      console.log(`URL créée pour l'image: ${url}`)
-      return url
-    } catch (error) {
-      console.error('Erreur lors du téléchargement de l\'image:', error)
-      // Fallback vers une image d'erreur
-      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMDAgNTBDMTI3LjYxNCA1MCAxNTAgNzIuMzg2IDE1MCAxMDBDMTUwIDEyNy42MTQgMTI3LjYxNCAxNTAgMTAwIDE1MEM3Mi4zODYgMTUwIDUwIDEyNy42MTQgNTAgMTAwQzUwIDcyLjM4NiA3Mi4zODYgNTAgMTAwIDUwWiIgZmlsbD0iI0QxRDFENyIvPgo8cGF0aCBkPSJNMTEwIDkwSDEwMFYxMTBIMTEwVjkwWiIgZmlsbD0iI0QxRDFENyIvPgo8cGF0aCBkPSJNMTAwIDExMFYxMjBIMTEwVjExMEgxMDBaIiBmaWxsPSIjRDFEMUQ3Ii8+Cjwvc3ZnPgo='
-    }
-  }
+
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900">
@@ -1100,7 +1467,14 @@ Vous pouvez toujours :
       </div>
 
       {/* Zone principale */}
-      <div className="flex-1 overflow-auto">
+      <div 
+        className="flex-1 overflow-auto relative"
+        ref={fileExplorerRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onContextMenu={(e) => handleContextMenu(e)}
+      >
         {viewMode === "list" ? (
           <div className="p-3">
             <table className="w-full">
@@ -1117,8 +1491,11 @@ Vous pouvez toujours :
                 {filteredAndSortedFiles.map((file) => (
                   <tr
                     key={file.id}
+                    data-file-id={file.id}
                     className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
                       selectedFiles.includes(file.id) ? "bg-blue-50 dark:bg-blue-900/20" : ""
+                    } ${
+                      dragSelection.includes(file.id) ? "bg-blue-100 dark:bg-blue-800/30" : ""
                     }`}
                     onClick={(e) => handleFileClick(file, e)}
                     onDoubleClick={() => handleFileDoubleClick(file)}
@@ -1138,7 +1515,7 @@ Vous pouvez toujours :
                       {file.type === "folder" ? "Dossier" : file.extension?.toUpperCase() || "Fichier"}
                     </td>
                     <td className="p-2 text-sm text-gray-600 dark:text-gray-400">
-                      {formatDate(file.modifiedAt)}
+                      {formatDate(new Date(file.modifiedAt))}
                     </td>
                     <td className="p-2">
                       <div className="flex items-center space-x-1">
@@ -1177,10 +1554,13 @@ Vous pouvez toujours :
               {filteredAndSortedFiles.map((file) => (
                 <div
                   key={file.id}
+                  data-file-id={file.id}
                   className={`p-3 rounded-lg border-2 cursor-pointer transition-colors ${
                     selectedFiles.includes(file.id)
                       ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
                       : "border-transparent hover:border-gray-300 dark:hover:border-gray-600"
+                  } ${
+                    dragSelection.includes(file.id) ? "border-blue-400 bg-blue-100 dark:bg-blue-800/30" : ""
                   }`}
                   onClick={(e) => handleFileClick(file, e)}
                   onDoubleClick={() => handleFileDoubleClick(file)}
@@ -1199,6 +1579,19 @@ Vous pouvez toujours :
           </div>
         )}
 
+        {/* Zone de sélection visuelle */}
+        {isDragging && (
+          <div
+            className="absolute border-2 border-blue-500 bg-blue-100 bg-opacity-20 pointer-events-none z-10"
+            style={{
+              left: Math.min(dragStart.x, dragEnd.x),
+              top: Math.min(dragStart.y, dragEnd.y),
+              width: Math.abs(dragEnd.x - dragStart.x),
+              height: Math.abs(dragEnd.y - dragStart.y),
+            }}
+          />
+        )}
+
         {filteredAndSortedFiles.length === 0 && (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
             <FolderIcon className="w-16 h-16 mb-4" />
@@ -1214,7 +1607,9 @@ Vous pouvez toujours :
           <div className="flex items-center space-x-4">
             <span>{filteredAndSortedFiles.length} élément(s)</span>
             {selectedFiles.length > 0 && (
-              <span>{selectedFiles.length} sélectionné(s)</span>
+              <span className="text-blue-600 dark:text-blue-400 font-medium">
+                {selectedFiles.length} sélectionné(s)
+              </span>
             )}
             <span>
               {formatFileSize(
@@ -1224,12 +1619,17 @@ Vous pouvez toujours :
               )}
             </span>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
             <span>Dossier: {currentPath}</span>
             {selectedFiles.length > 0 && (
-              <span className="text-xs text-gray-500">
-                Ctrl+Z: Archiver | Ctrl+C: Copier | Ctrl+X: Couper | Del: Supprimer
-              </span>
+              <div className="flex items-center space-x-2 text-xs text-gray-500">
+                <span>Ctrl+A: Tout sélectionner</span>
+                <span>Ctrl+C: Copier</span>
+                <span>Ctrl+X: Couper</span>
+                <span>Ctrl+Z: Archiver</span>
+                <span>Del: Supprimer</span>
+                <span>Glisser: Sélection multiple</span>
+              </div>
             )}
           </div>
         </div>
@@ -1241,73 +1641,199 @@ Vous pouvez toujours :
           className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1"
           style={{ left: contextMenuPosition.x, top: contextMenuPosition.y }}
         >
+          {/* Options d'affichage */}
+          <div className="relative">
           <button
+              onMouseEnter={() => setShowViewSubmenu(true)}
+              onMouseLeave={() => setShowViewSubmenu(false)}
+              className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
+            >
+              <div className="flex items-center space-x-2">
+                <span>👁️</span>
+                <span>Affichage</span>
+              </div>
+              <span className="text-xs">▶</span>
+            </button>
+            
+            {showViewSubmenu && (
+              <div 
+                className="absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-40"
+                onMouseEnter={() => setShowViewSubmenu(true)}
+                onMouseLeave={() => setShowViewSubmenu(false)}
+              >
+                <button
+                  onClick={() => {
+                    setViewMode("list")
+                    setShowViewSubmenu(false)
+                    setShowContextMenu(false)
+                  }}
             className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                >
+                  <span>📋</span>
+                  <span>Liste</span>
+                </button>
+                <button
             onClick={() => {
-              if (contextMenuTarget) showItemDetails(contextMenuTarget)
+                    setViewMode("grid")
+                    setShowViewSubmenu(false)
               setShowContextMenu(false)
             }}
-            title="Afficher les détails du fichier"
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                >
+                  <span>🔲</span>
+                  <span>Grille</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
+
+          {/* Nouveau */}
+          <div className="relative">
+            <button
+              onMouseEnter={() => setShowNewSubmenu(true)}
+              onMouseLeave={() => setShowNewSubmenu(false)}
+              className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
+            >
+              <div className="flex items-center space-x-2">
+                <span>➕</span>
+                <span>Nouveau</span>
+              </div>
+              <span className="text-xs">▶</span>
+            </button>
+            
+            {showNewSubmenu && (
+              <div 
+                className="absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-40"
+                onMouseEnter={() => setShowNewSubmenu(true)}
+                onMouseLeave={() => setShowNewSubmenu(false)}
+              >
+                <button
+                  onClick={() => {
+                    createNewFolderFromContext()
+                    setShowNewSubmenu(false)
+                  }}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                >
+                  <span>📁</span>
+                  <span>Dossier</span>
+                </button>
+                <button
+                  onClick={() => {
+                    createNewFileFromContext()
+                    setShowNewSubmenu(false)
+                  }}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                >
+                  <span>📄</span>
+                  <span>Document texte</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
+
+          {/* Actions générales */}
+          <button
+            onClick={() => {
+              refreshCurrentFolder()
+              setShowContextMenu(false)
+            }}
+            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+          >
+            <span>🔄</span>
+            <span>Actualiser</span>
+          </button>
+
+          <button
+            onClick={() => {
+              pasteFiles()
+              setShowContextMenu(false)
+            }}
+            disabled={!clipboard}
+            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+          >
+            <span>📋</span>
+            <span>Coller</span>
+          </button>
+
+          <button
+            onClick={() => {
+              addFilesFromComputer()
+            }}
+            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+          >
+            <span>📤</span>
+            <span>Ajouter des fichiers</span>
+          </button>
+
+          {/* Actions sur l'élément sélectionné */}
+          {contextMenuTarget && (
+            <>
+              <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
+              
+              <button
+                onClick={() => {
+                  showItemDetails(contextMenuTarget)
+                  setShowContextMenu(false)
+                }}
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
           >
             <InfoIcon className="w-4 h-4" />
             <span>Propriétés</span>
           </button>
+              
           <button
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
             onClick={() => {
-              if (contextMenuTarget) {
                 setSelectedFiles([contextMenuTarget.id])
                 copySelected()
-              }
               setShowContextMenu(false)
             }}
-            title="Copier le fichier sélectionné"
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
           >
             <CopyIcon className="w-4 h-4" />
             <span>Copier</span>
           </button>
+              
                       <button
-              className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
               onClick={() => {
-                if (contextMenuTarget) {
                   setSelectedFiles([contextMenuTarget.id])
                   cutSelected()
-                }
                 setShowContextMenu(false)
               }}
-              title="Couper le fichier sélectionné"
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
             >
               <ScissorsIcon className="w-4 h-4" />
               <span>Couper</span>
             </button>
+              
           <button
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
             onClick={() => {
-              if (contextMenuTarget) {
                 setSelectedFiles([contextMenuTarget.id])
-                deleteSelected()
-              }
+                  createArchive()
               setShowContextMenu(false)
             }}
-            title="Supprimer le fichier sélectionné"
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
           >
-            <TrashIcon className="w-4 h-4" />
-            <span>Supprimer</span>
+                <ArchiveIcon className="w-4 h-4" />
+                <span>Archiver</span>
           </button>
+              
           <button
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
             onClick={() => {
-              if (contextMenuTarget) {
                 setSelectedFiles([contextMenuTarget.id])
-                createArchive()
-              }
+                  deleteSelected()
               setShowContextMenu(false)
             }}
-            title="Archiver les fichiers sélectionnés"
+                className="w-full px-4 py-2 text-left hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center space-x-2"
           >
-            <ArchiveIcon className="w-4 h-4" />
-            <span>Archiver</span>
+                <TrashIcon className="w-4 h-4" />
+                <span>Supprimer</span>
           </button>
+            </>
+          )}
         </div>
       )}
 
@@ -1373,11 +1899,11 @@ Vous pouvez toujours :
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Créé le:</span>
-                  <span className="text-sm">{formatDate(detailsItem.createdAt)}</span>
+                  <span className="text-sm">{formatDate(new Date(detailsItem.createdAt))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Modifié le:</span>
-                  <span className="text-sm">{formatDate(detailsItem.modifiedAt)}</span>
+                  <span className="text-sm">{formatDate(new Date(detailsItem.modifiedAt))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Chemin:</span>
@@ -1395,16 +1921,7 @@ Vous pouvez toujours :
         </div>
       )}
 
-      {/* Visionneur de fichier */}
-      {showFileViewer && viewerFile && (
-        <FileViewer
-          file={viewerFile}
-          onClose={() => {
-            setShowFileViewer(false)
-            setViewerFile(null)
-          }}
-        />
-      )}
+
 
       {/* Fermer le menu contextuel en cliquant ailleurs */}
       {showContextMenu && (
@@ -1413,6 +1930,15 @@ Vous pouvez toujours :
           onClick={() => setShowContextMenu(false)}
         />
       )}
+
+      {/* Alerte personnalisée */}
+      <CustomAlert
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={hideAlert}
+        show={alert.show}
+      />
     </div>
   )
 } 

@@ -5,6 +5,7 @@ import { useFileStore } from "@/stores/file-store"
 import { useWindowStore } from "@/stores/window-store"
 import { useDesktopStore } from "@/stores/desktop-store"
 import { fileService } from "@/services/file-service"
+import { cn } from "@/lib/utils"
 
 interface DesktopContextMenuProps {
   x: number
@@ -20,7 +21,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
   const [showNewSubmenu, setShowNewSubmenu] = useState(false)
   const { openWindow } = useWindowStore()
   const { refreshFiles } = useFileStore()
-  const { refreshDesktopFiles } = useDesktopStore()
+  const { refreshDesktopFiles, setIconSize, iconSize, reorganizeIcons } = useDesktopStore()
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -84,7 +85,21 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
                 console.log(`${files.length} fichier(s) ajouté(s) au bureau`)
               } catch (error) {
                 console.error("Erreur lors de l'upload:", error)
-                alert("Erreur lors de l'ajout des fichiers")
+                let errorMessage = "Erreur lors de l'ajout des fichiers"
+                
+                if (error instanceof Error) {
+                  if (error.message.includes("Type de fichier non autorisé")) {
+                    errorMessage = "Certains fichiers ne sont pas autorisés sur le bureau.\n\nTypes autorisés : Tous les types de fichiers"
+                  } else if (error.message.includes("existe déjà")) {
+                    errorMessage = "Un fichier avec ce nom existe déjà sur le bureau.\n\nVeuillez renommer le fichier ou le supprimer d'abord."
+                  } else if (error.message.includes("Taille de fichier")) {
+                    errorMessage = "Un fichier est trop volumineux.\n\nTaille maximale : 10 MB"
+                  } else {
+                    errorMessage = error.message
+                  }
+                }
+                
+                alert(errorMessage)
               }
             }
             
@@ -102,15 +117,18 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
         break
       case "view-large":
         console.log("Vue grandes icônes")
-        // TODO: Implémenter le changement de taille des icônes
+        setIconSize("large")
+        reorganizeIcons()
         break
       case "view-medium":
         console.log("Vue moyennes icônes")
-        // TODO: Implémenter le changement de taille des icônes
+        setIconSize("medium")
+        reorganizeIcons()
         break
       case "view-small":
         console.log("Vue petites icônes")
-        // TODO: Implémenter le changement de taille des icônes
+        setIconSize("small")
+        reorganizeIcons()
         break
              case "view-list":
          console.log("Vue liste")
@@ -154,11 +172,17 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
 
   const createNewFile = async () => {
     try {
-      const fileName = prompt("Nom du nouveau fichier (avec extension):")
+      const fileName = prompt("Nom du nouveau fichier:")
       if (!fileName || fileName.trim() === "") return
 
+      // Forcer l'extension .txt si elle n'est pas présente
+      let finalFileName = fileName.trim()
+      if (!finalFileName.toLowerCase().endsWith('.txt')) {
+        finalFileName += '.txt'
+      }
+
       await fileService.createFileWithObject({
-        name: fileName.trim(),
+        name: finalFileName,
         path: "/bureau",
         content: "",
         userId: 1
@@ -246,24 +270,36 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
           >
             <button
               onClick={() => handleAction("view-large")}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+              className={cn(
+                "w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center",
+                iconSize === "large" && "bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+              )}
             >
               <span className="mr-3">🔍</span>
               Grandes icônes
+              {iconSize === "large" && <span className="ml-auto">✓</span>}
             </button>
             <button
               onClick={() => handleAction("view-medium")}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+              className={cn(
+                "w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center",
+                iconSize === "medium" && "bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+              )}
             >
               <span className="mr-3">📱</span>
               Moyennes icônes
+              {iconSize === "medium" && <span className="ml-auto">✓</span>}
             </button>
             <button
               onClick={() => handleAction("view-small")}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+              className={cn(
+                "w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center",
+                iconSize === "small" && "bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+              )}
             >
               <span className="mr-3">📱</span>
               Petites icônes
+              {iconSize === "small" && <span className="ml-auto">✓</span>}
             </button>
             <button
               onClick={() => handleAction("view-list")}
@@ -330,7 +366,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
          onClick={() => handleAction("paste")}
          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
        >
-         <span className="mr-3">📁</span>
+         <span className="mr-3">📤</span>
          Ajouter des fichiers
        </button>
 

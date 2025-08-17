@@ -24,6 +24,66 @@ export function Desktop() {
     isLoadingDesktopFiles
   } = useDesktopStore()
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selectedItem?: FileItem | null } | null>(null)
+  const [selectedDesktopItems, setSelectedDesktopItems] = useState<string[]>([])
+
+  // Gestionnaire d'événements clavier global pour le bureau
+  useEffect(() => {
+    const handleDesktopKeyDown = (event: KeyboardEvent) => {
+      // Backspace pour supprimer les éléments sélectionnés sur le bureau
+      if (event.key === 'Backspace' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        // Vérifier si on est dans un champ de saisie
+        const activeElement = document.activeElement
+        const isInputField = activeElement?.tagName === 'INPUT' || 
+                           activeElement?.tagName === 'TEXTAREA' || 
+                           (activeElement as HTMLElement)?.contentEditable === 'true'
+        
+        // Si on n'est pas dans un champ de saisie et qu'il y a des éléments sélectionnés
+        if (!isInputField && selectedDesktopItems.length > 0) {
+          event.preventDefault()
+          deleteSelectedDesktopItems()
+        }
+      }
+      
+      // Échap pour désélectionner
+      if (event.key === 'Escape') {
+        setSelectedDesktopItems([])
+      }
+    }
+
+    document.addEventListener('keydown', handleDesktopKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleDesktopKeyDown)
+    }
+  }, [selectedDesktopItems])
+
+  // Fonction pour supprimer les éléments sélectionnés sur le bureau
+  const deleteSelectedDesktopItems = async () => {
+    if (selectedDesktopItems.length === 0) return
+    
+    const confirmMessage = `Êtes-vous sûr de vouloir supprimer ${selectedDesktopItems.length} élément(s) du bureau ?`
+    if (!confirm(confirmMessage)) return
+
+    try {
+      for (const itemId of selectedDesktopItems) {
+        const item = desktopFiles.find(f => f.id === itemId)
+        if (item) {
+          if (item.type === "folder") {
+            await fileService.deleteFolder(item.id)
+          } else {
+            await fileService.deleteFileById(item.id)
+          }
+        }
+      }
+      
+      // Rafraîchir le bureau
+      await refreshDesktopFiles()
+      setSelectedDesktopItems([])
+      console.log(`${selectedDesktopItems.length} élément(s) supprimé(s) du bureau`)
+    } catch (error) {
+      console.error('Erreur lors de la suppression des éléments du bureau:', error)
+      alert("Erreur lors de la suppression des éléments du bureau")
+    }
+  }
 
   // Applications disponibles sur le bureau
   const desktopApps: DesktopApp[] = useMemo(
@@ -249,6 +309,16 @@ export function Desktop() {
     // TODO: Sauvegarder la position
   }
 
+  const handleIconSelectionChange = (id: string, isSelected: boolean) => {
+    setSelectedDesktopItems(prev => {
+      if (isSelected) {
+        return [...prev, id]
+      } else {
+        return prev.filter(itemId => itemId !== id)
+      }
+    })
+  }
+
   // Gestion du drag & drop pour ajouter des fichiers au bureau
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -322,6 +392,8 @@ export function Desktop() {
             onDoubleClick={() => handleDoubleClick(item)}
             onContextMenu={handleContextMenu}
             onPositionChange={handleIconPositionChange}
+            onSelectionChange={handleIconSelectionChange}
+            isSelected={selectedDesktopItems.includes(item.id)}
             tooltip={"description" in item ? item.description : undefined}
           />
         )

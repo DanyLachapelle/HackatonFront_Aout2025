@@ -13,6 +13,7 @@ export interface WindowData {
     | "clock"
     | "paint"
     | "music-player"
+    | "mini-music-player"
     | "settings"
   position: { x: number; y: number }
   size: { width: number; height: number }
