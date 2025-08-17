@@ -34,6 +34,7 @@ interface DesktopStore {
   addFileToDesktop: (file: FileItem) => void
   removeFileFromDesktop: (fileId: string) => void
   reorganizeIcons: () => void
+  cleanIconPositions: () => void
 }
 
 export const useDesktopStore = create<DesktopStore>()(
@@ -61,8 +62,6 @@ export const useDesktopStore = create<DesktopStore>()(
         })),
       initializeIconPositions: (items) => {
         const { iconPositions, iconSize } = get()
-        const newPositions: Record<string, IconPosition> = {}
-        let needsUpdate = false
         
         // Ajuster l'espacement selon la taille des icônes
         const getGridSpacing = () => {
@@ -78,15 +77,59 @@ export const useDesktopStore = create<DesktopStore>()(
         
         const { x: gridGapX, y: gridGapY } = getGridSpacing()
         const iconsPerColumn = Math.floor((window.innerHeight - 100) / gridGapY)
-
-        items.forEach((item, index) => {
+        
+        // Créer une grille pour éviter les superpositions
+        const grid: boolean[][] = []
+        const maxColumns = Math.floor((window.innerWidth - 40) / gridGapX)
+        
+        // Initialiser la grille
+        for (let col = 0; col < maxColumns; col++) {
+          grid[col] = []
+          for (let row = 0; row < iconsPerColumn; row++) {
+            grid[col][row] = false
+          }
+        }
+        
+        // Marquer les positions déjà occupées
+        Object.values(iconPositions).forEach(pos => {
+          const col = Math.floor((pos.x - 20) / gridGapX)
+          const row = Math.floor((pos.y - 20) / gridGapY)
+          if (col >= 0 && col < maxColumns && row >= 0 && row < iconsPerColumn) {
+            grid[col][row] = true
+          }
+        })
+        
+        const newPositions: Record<string, IconPosition> = {}
+        let needsUpdate = false
+        
+        // Trouver des positions pour les icônes qui n'en ont pas
+        items.forEach((item) => {
           if (!iconPositions[item.id]) {
             needsUpdate = true
-            const col = Math.floor(index / iconsPerColumn)
-            const row = index % iconsPerColumn
-            newPositions[item.id] = {
-              x: col * gridGapX + 20,
-              y: row * gridGapY + 20,
+            
+            // Chercher la première position libre dans la grille
+            let found = false
+            for (let col = 0; col < maxColumns && !found; col++) {
+              for (let row = 0; row < iconsPerColumn && !found; row++) {
+                if (!grid[col][row]) {
+                  newPositions[item.id] = {
+                    x: col * gridGapX + 20,
+                    y: row * gridGapY + 20,
+                  }
+                  grid[col][row] = true
+                  found = true
+                }
+              }
+            }
+            
+            // Si aucune position libre n'est trouvée, ajouter à la fin
+            if (!found) {
+              const lastCol = Math.floor((items.length - 1) / iconsPerColumn)
+              const lastRow = (items.length - 1) % iconsPerColumn
+              newPositions[item.id] = {
+                x: lastCol * gridGapX + 20,
+                y: lastRow * gridGapY + 20,
+              }
             }
           }
         })
@@ -137,6 +180,20 @@ export const useDesktopStore = create<DesktopStore>()(
           desktopFiles: state.desktopFiles.filter(f => f.id !== fileId)
         }))
       },
+      cleanIconPositions: () => {
+        const { desktopFiles, iconPositions } = get()
+        const currentIds = new Set(desktopFiles.map(f => f.id))
+        
+        // Supprimer les positions des icônes qui n'existent plus
+        const cleanedPositions: Record<string, IconPosition> = {}
+        Object.entries(iconPositions).forEach(([id, position]) => {
+          if (currentIds.has(id)) {
+            cleanedPositions[id] = position
+          }
+        })
+        
+        set({ iconPositions: cleanedPositions })
+      },
       reorganizeIcons: () => {
         const { desktopFiles, iconSize } = get()
         const allItems = [...desktopFiles] // Ajouter les apps si nécessaire
@@ -155,15 +212,45 @@ export const useDesktopStore = create<DesktopStore>()(
         
         const { x: gridGapX, y: gridGapY } = getGridSpacing()
         const iconsPerColumn = Math.floor((window.innerHeight - 100) / gridGapY)
+        const maxColumns = Math.floor((window.innerWidth - 40) / gridGapX)
+        
+        // Créer une grille pour organiser les icônes
+        const grid: boolean[][] = []
+        for (let col = 0; col < maxColumns; col++) {
+          grid[col] = []
+          for (let row = 0; row < iconsPerColumn; row++) {
+            grid[col][row] = false
+          }
+        }
         
         const newPositions: Record<string, IconPosition> = {}
         
-        allItems.forEach((item, index) => {
-          const col = Math.floor(index / iconsPerColumn)
-          const row = index % iconsPerColumn
-          newPositions[item.id] = {
-            x: col * gridGapX + 20,
-            y: row * gridGapY + 20,
+        // Placer chaque icône dans la première position libre
+        allItems.forEach((item) => {
+          let placed = false
+          
+          // Chercher la première position libre dans la grille
+          for (let col = 0; col < maxColumns && !placed; col++) {
+            for (let row = 0; row < iconsPerColumn && !placed; row++) {
+              if (!grid[col][row]) {
+                newPositions[item.id] = {
+                  x: col * gridGapX + 20,
+                  y: row * gridGapY + 20,
+                }
+                grid[col][row] = true
+                placed = true
+              }
+            }
+          }
+          
+          // Si aucune position libre n'est trouvée, placer à la fin
+          if (!placed) {
+            const lastCol = Math.floor((allItems.length - 1) / iconsPerColumn)
+            const lastRow = (allItems.length - 1) % iconsPerColumn
+            newPositions[item.id] = {
+              x: lastCol * gridGapX + 20,
+              y: lastRow * gridGapY + 20,
+            }
           }
         })
         

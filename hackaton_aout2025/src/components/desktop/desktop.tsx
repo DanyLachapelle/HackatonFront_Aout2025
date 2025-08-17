@@ -21,7 +21,8 @@ export function Desktop() {
     desktopFiles,
     loadDesktopFiles,
     refreshDesktopFiles,
-    isLoadingDesktopFiles
+    isLoadingDesktopFiles,
+    cleanIconPositions
   } = useDesktopStore()
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selectedItem?: FileItem | null } | null>(null)
   const [selectedDesktopItems, setSelectedDesktopItems] = useState<string[]>([])
@@ -29,21 +30,6 @@ export function Desktop() {
   // Gestionnaire d'événements clavier global pour le bureau
   useEffect(() => {
     const handleDesktopKeyDown = (event: KeyboardEvent) => {
-      // Backspace pour supprimer les éléments sélectionnés sur le bureau
-      if (event.key === 'Backspace' && !event.ctrlKey && !event.metaKey && !event.altKey) {
-        // Vérifier si on est dans un champ de saisie
-        const activeElement = document.activeElement
-        const isInputField = activeElement?.tagName === 'INPUT' || 
-                           activeElement?.tagName === 'TEXTAREA' || 
-                           (activeElement as HTMLElement)?.contentEditable === 'true'
-        
-        // Si on n'est pas dans un champ de saisie et qu'il y a des éléments sélectionnés
-        if (!isInputField && selectedDesktopItems.length > 0) {
-          event.preventDefault()
-          deleteSelectedDesktopItems()
-        }
-      }
-      
       // Échap pour désélectionner
       if (event.key === 'Escape') {
         setSelectedDesktopItems([])
@@ -54,36 +40,7 @@ export function Desktop() {
     return () => {
       document.removeEventListener('keydown', handleDesktopKeyDown)
     }
-  }, [selectedDesktopItems])
-
-  // Fonction pour supprimer les éléments sélectionnés sur le bureau
-  const deleteSelectedDesktopItems = async () => {
-    if (selectedDesktopItems.length === 0) return
-    
-    const confirmMessage = `Êtes-vous sûr de vouloir supprimer ${selectedDesktopItems.length} élément(s) du bureau ?`
-    if (!confirm(confirmMessage)) return
-
-    try {
-      for (const itemId of selectedDesktopItems) {
-        const item = desktopFiles.find(f => f.id === itemId)
-        if (item) {
-          if (item.type === "folder") {
-            await fileService.deleteFolder(item.id)
-          } else {
-            await fileService.deleteFileById(item.id)
-          }
-        }
-      }
-      
-      // Rafraîchir le bureau
-      await refreshDesktopFiles()
-      setSelectedDesktopItems([])
-      console.log(`${selectedDesktopItems.length} élément(s) supprimé(s) du bureau`)
-    } catch (error) {
-      console.error('Erreur lors de la suppression des éléments du bureau:', error)
-      alert("Erreur lors de la suppression des éléments du bureau")
-    }
-  }
+  }, [])
 
   // Applications disponibles sur le bureau
   const desktopApps: DesktopApp[] = useMemo(
@@ -166,10 +123,21 @@ export function Desktop() {
     loadFiles("/")
   }, [loadFiles])
 
+  // Charger les fichiers du bureau au montage du composant
   useEffect(() => {
-    // Charger les fichiers du bureau depuis le dossier système Bureau
     loadDesktopFiles()
   }, [loadDesktopFiles])
+
+  // Initialiser les positions des icônes quand les fichiers changent
+  useEffect(() => {
+    if (desktopFiles.length > 0) {
+      // Nettoyer les positions des icônes supprimées
+      cleanIconPositions()
+      // Initialiser les positions pour les nouvelles icônes
+      const allItems = [...desktopApps, ...desktopFiles]
+      initializeIconPositions(allItems)
+    }
+  }, [desktopFiles, cleanIconPositions, initializeIconPositions, desktopApps])
 
   // Rafraîchir le bureau quand il devient visible
   useEffect(() => {
@@ -300,9 +268,11 @@ export function Desktop() {
     }
   }
 
-  const handleContextMenu = (e: React.MouseEvent, item?: FileItem) => {
+  const handleContextMenu = (e: React.MouseEvent, item?: FileItem | DesktopApp) => {
     e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY, selectedItem: item || null })
+    // Ne garder que les FileItem pour le menu contextuel (les DesktopApp n'ont pas de menu contextuel)
+    const fileItem = 'path' in (item || {}) ? item as FileItem : null
+    setContextMenu({ x: e.clientX, y: e.clientY, selectedItem: fileItem })
   }
 
   const handleIconPositionChange = (id: string, newPosition: { x: number; y: number }) => {
@@ -338,11 +308,16 @@ export function Desktop() {
       }
       // Recharger les fichiers du bureau
       await loadDesktopFiles()
+      // Réorganiser les icônes après l'ajout
+      setTimeout(() => {
+        const allItems = [...desktopApps, ...desktopFiles]
+        initializeIconPositions(allItems)
+      }, 100)
     } catch (error) {
       console.error('Erreur lors de l\'upload de fichiers:', error)
       alert('Erreur lors de l\'ajout de fichiers au bureau')
     }
-  }, [loadDesktopFiles])
+  }, [loadDesktopFiles, desktopApps, desktopFiles, initializeIconPositions])
 
 
 
