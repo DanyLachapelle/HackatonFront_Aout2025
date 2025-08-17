@@ -316,6 +316,17 @@ class FileService {
     }
   }
 
+  // Fallback move/copy tant que le backend n'expose pas d'endpoint dédié
+  async moveOrCopyFile(sourcePath: string, targetDir: string, action: 'copy' | 'move'): Promise<void> {
+    // Télécharger contenu puis recréer (texte uniquement pour l'instant)
+    const content = await this.getFileContent(sourcePath)
+    const name = sourcePath.split('/').pop() || 'fichier'
+    await this.createFile(targetDir, name, content)
+    if (action === 'move') {
+      await this.deleteFile(sourcePath)
+    }
+  }
+
   async deleteFile(path: string): Promise<void> {
     try {
       const response = await fetch(`${this.baseUrl}/files/files?path=${encodeURIComponent(path)}&userId=${this.userId}`, {

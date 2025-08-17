@@ -4,8 +4,8 @@ export interface FileItem {
   type: "file" | "folder"
   path: string
   size: number
-  createdAt: string
-  modifiedAt: string
+  createdAt: string | Date
+  modifiedAt: string | Date
   mimeType?: string
   extension?: string
   parentId?: string

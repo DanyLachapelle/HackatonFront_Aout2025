@@ -433,12 +433,39 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     setClipboard({ action: "cut", files: selectedItems })
   }
 
-  const pasteFiles = () => {
+  const pasteFiles = async () => {
     if (!clipboard) return
-    
-    // Simulation du collage
-    console.log(`${clipboard.action} files:`, clipboard.files)
-    setClipboard(null)
+    try {
+      // Coller dans le dossier courant
+      const targetPath = currentPath
+      const isCut = clipboard.action === 'cut'
+      for (const item of clipboard.files) {
+        // Pour l'instant, on simule via création/suppression côté API (fallback en attendant les endpoints move/copy)
+        if (item.type === 'file') {
+          // Télécharger contenu puis recréer
+          const content = await fileService.getFileContent(item.path)
+          const newName = item.name
+          await fileService.createFile(targetPath, newName, content)
+          if (isCut) {
+            await fileService.deleteFile(item.path)
+          }
+        } else {
+          // Créer un dossier vide (pas de récursif tant que backend move/copy n'existe pas)
+          await fileService.createFolder(targetPath, item.name)
+          if (isCut) {
+            await fileService.deleteFolder(item.id)
+          }
+        }
+      }
+      setClipboard(null)
+      await loadFiles(currentPath)
+      if (currentPath === '/bureau') {
+        await refreshDesktopFiles()
+      }
+    } catch (error) {
+      console.error('Erreur lors du collage:', error)
+      alert('Coller a échoué. Déplacement/copie récursive non pris en charge pour le moment.')
+    }
   }
 
   const deleteSelected = async () => {
@@ -614,24 +641,32 @@ Cette archive a été créée depuis l'explorateur de fichiers de l'application 
       file.name.toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => {
+      // Dossiers toujours en haut
+      if (a.type !== b.type) return a.type === 'folder' ? -1 : 1
       let comparison = 0
-      
       switch (sortBy) {
-        case "name":
+        case 'name':
           comparison = a.name.localeCompare(b.name)
           break
-        case "type":
-          comparison = a.type.localeCompare(b.type)
+        case 'type': {
+          const extA = a.type === 'folder' ? '' : (a.extension || a.name.split('.').pop() || '').toLowerCase()
+          const extB = b.type === 'folder' ? '' : (b.extension || b.name.split('.').pop() || '').toLowerCase()
+          comparison = extA.localeCompare(extB)
+          // à égalité d'extension, trier par nom
+          if (comparison === 0) comparison = a.name.localeCompare(b.name)
           break
-        case "size":
+        }
+        case 'size':
           comparison = a.size - b.size
           break
-        case "date":
-          comparison = a.modifiedAt.getTime() - b.modifiedAt.getTime()
+        case 'date': {
+          const da = (a.modifiedAt instanceof Date) ? a.modifiedAt : new Date(a.modifiedAt)
+          const db = (b.modifiedAt instanceof Date) ? b.modifiedAt : new Date(b.modifiedAt)
+          comparison = da.getTime() - db.getTime()
           break
+        }
       }
-      
-      return sortOrder === "asc" ? comparison : -comparison
+      return sortOrder === 'asc' ? comparison : -comparison
     })
 
   // Fonction pour obtenir le contenu des fichiers
