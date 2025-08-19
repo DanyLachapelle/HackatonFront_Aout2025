@@ -73,7 +73,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     lastModified?: Date
   } | null>(null)
 
-  const fileExplorerRef = useRef<HTMLDivElement>(null)
+  //const fileExplorerRef = useRef<HTMLDivElement>(null)
 
   // Charger les fichiers depuis le backend
   const loadFiles = async (path: string) => {
