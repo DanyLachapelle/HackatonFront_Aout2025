@@ -87,7 +87,6 @@ class FileService {
     try {
       console.log('Test de connexion au backend...')
       console.log('URL de base:', this.baseUrl)
-      
       const response = await fetch(`${this.baseUrl}/files/folders?path=/&userId=${this.userId}`)
       console.log('Réponse du backend:', response.status, response.statusText)
       
@@ -110,7 +109,8 @@ class FileService {
   async listFiles(path: string): Promise<FileItem[]> {
     try {
       console.log('📄 listFiles appelé pour le chemin:', path)
-      const url = `${this.baseUrl}/files/files?path=${encodeURIComponent(path)}&userId=${this.userId}`
+      // /api/files/getFileByPath => récupérer les fichiers par chemin
+      const url = `${this.baseUrl}/files/getFileByPath?path=${encodeURIComponent(path)}&userId=${this.userId}`
       console.log('🌐 URL de la requête:', url)
       const response = await fetch(url)
       console.log('📡 Réponse HTTP:', response.status, response.statusText)
@@ -129,7 +129,8 @@ class FileService {
   async listFolders(path: string): Promise<FileItem[]> {
     try {
       console.log('📁 listFolders appelé pour le chemin:', path)
-      const url = `${this.baseUrl}/files/folders?path=${encodeURIComponent(path)}&userId=${this.userId}`
+      // /api/v2/folders/getFoldersByUserAndPath=> récupérer les dossiers par utilisateur et chemin
+      const url = `${this.baseUrl}/folders/getFoldersByUserAndPath?path=${encodeURIComponent(path)}&userId=${this.userId}`;
       console.log('🌐 URL de la requête:', url)
       const response = await fetch(url)
       console.log('📡 Réponse HTTP:', response.status, response.statusText)
@@ -177,7 +178,8 @@ class FileService {
         userId: this.userId
       }
       
-      const response = await fetch(`${this.baseUrl}/files/folders`, {
+      // /api/folders/CreateFolder ==> créer un dossier
+      const response = await fetch(`${this.baseUrl}/folders/CreateFolder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -237,7 +239,8 @@ class FileService {
         userId: this.userId
       }
       
-      const response = await fetch(`${this.baseUrl}/files/files`, {
+      // /api/files/CreateFile ==> créer un fichier
+      const response = await fetch(`${this.baseUrl}/files/CreateFile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -313,15 +316,16 @@ class FileService {
         }
       }
       
-      console.log(`🌐 Envoi de la requête vers: ${this.baseUrl}/files/files/upload`)
+      console.log(`🌐 Envoi de la requête vers: ${this.baseUrl}/files/UploadFile`)
       console.log(`📤 Paramètres:`, {
         parentPath,
         userId: this.userId,
         fileName: file.name,
         contentType: file.type
       })
-      
-      const response = await fetch(`${this.baseUrl}/files/files/upload`, {
+
+      // /api/files/UploadFile ==> uploader un fichier
+      const response = await fetch(`${this.baseUrl}/files/UploadFile`, {
         method: 'POST',
         body: formData
       })
@@ -336,7 +340,7 @@ class FileService {
         // Solution temporaire pour diagnostiquer les erreurs 400 avec message vide
         if (response.status === 400 && (!errorText || errorText.trim() === "")) {
           console.error(`🔍 DIAGNOSTIC - Erreur 400 avec message vide:`)
-          console.error(`  • URL: ${this.baseUrl}/files/files/upload`)
+          console.error(`  • URL: ${this.baseUrl}/files/UploadFile`)
           console.error(`  • Méthode: POST`)
           console.error(`  • ParentPath: ${parentPath}`)
           console.error(`  • UserId: ${this.userId}`)
@@ -396,7 +400,8 @@ class FileService {
 
   async getFileContent(path: string): Promise<string> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/files/content?path=${encodeURIComponent(path)}&userId=${this.userId}`)
+      // /api/files/getContentByFile => Récupérer le type d'un fichier par son chemin
+      const response = await fetch(`${this.baseUrl}/files/getContentByFile?path=${encodeURIComponent(path)}&userId=${this.userId}`)
       if (!response.ok) throw new Error('Erreur lors de la lecture du fichier')
       return await response.text()
     } catch (error) {
@@ -407,7 +412,8 @@ class FileService {
 
   async updateFileContent(path: string, content: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/files/content?path=${encodeURIComponent(path)}&content=${encodeURIComponent(content)}&userId=${this.userId}`, {
+      // /api/files/UpdateFileContent => Mettre à jour le type d'un fichier
+      const response = await fetch(`${this.baseUrl}/files/UpdateFileContent?path=${encodeURIComponent(path)}&content=${encodeURIComponent(content)}&userId=${this.userId}`, {
         method: 'PUT'
       })
       if (!response.ok) throw new Error('Erreur lors de la mise à jour du fichier')
@@ -436,9 +442,13 @@ class FileService {
 
   async deleteFile(path: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/files?path=${encodeURIComponent(path)}&userId=${this.userId}`, {
-        method: 'DELETE'
-      })
+        // /api/files/DeleteFile => Supprimer un fichier par son chemin
+      const response = await fetch(
+          `${this.baseUrl}/files/DeleteFile?path=${encodeURIComponent(path)}&userId=${this.userId}`,
+          {
+            method: 'DELETE'
+          }
+      )
       if (!response.ok) throw new Error('Erreur lors de la suppression')
     } catch (error) {
       console.error('Erreur lors de la suppression:', error)
@@ -446,11 +456,13 @@ class FileService {
     }
   }
 
-  async deleteFileById(id: string): Promise<void> {
+  async deleteFileById(fileId: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/files/${id}?userId=${this.userId}`, {
-        method: 'DELETE'
-      })
+      // /api/files/DeleteFileById => Supprimer un fichier par son ID
+      const response = await fetch(
+          `${this.baseUrl}/files/DeleteFileById/${fileId}?fileId=${fileId}&userId=${this.userId}`,
+          { method: 'DELETE' }
+      )
       if (!response.ok) throw new Error('Erreur lors de la suppression du fichier')
     } catch (error) {
       console.error('Erreur lors de la suppression du fichier:', error)
@@ -458,11 +470,15 @@ class FileService {
     }
   }
 
-  async deleteFolder(id: string): Promise<void> {
+  async deleteFolder(folderId: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/folders/${id}?userId=${this.userId}`, {
-        method: 'DELETE'
-      })
+      // /api/files/DeleteFolderById => Supprimer un dossier par son ID
+      const response = await fetch(
+          `${this.baseUrl}/files/DeleteFolderById/${folderId}?folderId=${folderId}&userId=${this.userId}`,
+          {
+            method: 'DELETE'
+          }
+      )
       if (!response.ok) throw new Error('Erreur lors de la suppression du dossier')
     } catch (error) {
       console.error('Erreur lors de la suppression du dossier:', error)
@@ -470,15 +486,17 @@ class FileService {
     }
   }
 
+
   async renameFile(id: string, newName: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/files/${id}/rename`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ newName, userId: this.userId })
-      })
+
+        // /api/files/RenameFile => Renommer un fichier par son ID
+      const response = await fetch(
+          `${this.baseUrl}/files/RenameFile/${id}?newName=${encodeURIComponent(newName)}&userId=${this.userId}`,
+          {
+            method: 'PUT'
+          }
+      )
       if (!response.ok) throw new Error('Erreur lors du renommage du fichier')
     } catch (error) {
       console.error('Erreur lors du renommage du fichier:', error)
@@ -488,13 +506,13 @@ class FileService {
 
   async renameFolder(id: string, newName: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/folders/${id}/rename`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ newName, userId: this.userId })
-      })
+        // /api/files/RenameFolder => Renommer un dossier par son ID
+      const response = await fetch(
+          `${this.baseUrl}/folders/RenameFolder/${id}?newName=${encodeURIComponent(newName)}&userId=${this.userId}`,
+          {
+            method: 'PUT'
+          }
+      )
       if (!response.ok) throw new Error('Erreur lors du renommage du dossier')
     } catch (error) {
       console.error('Erreur lors du renommage du dossier:', error)
@@ -517,7 +535,10 @@ class FileService {
 
   async getFavoriteFiles(): Promise<FileItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/files/favorites?userId=${this.userId}`)
+      // const response = await fetch(`${this.baseUrl}/files/files/favorites?userId=${this.userId}`)
+
+      // /api/v2/folders/getFavoriteFolders ==> récupérer les fichiers favoris
+      const response = await fetch(`${this.baseUrl}/folders/getFavoriteFolders?userId=${this.userId}`)
       if (!response.ok) throw new Error('Erreur lors du chargement des favoris')
       const files: FileDto[] = await response.json()
       return files.map(file => this.fileDtoToFileItem(file))
@@ -541,7 +562,8 @@ class FileService {
 
   async toggleFileFavorite(path: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/files/favorite`, {
+      // /api/files/SetFavoriteFile ==> mettre fichier en favori
+      const response = await fetch(`${this.baseUrl}/files/SetFavoriteFile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -557,7 +579,15 @@ class FileService {
 
   async toggleFolderFavorite(path: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/folders/favorite`, {
+      // const response = await fetch(`${this.baseUrl}/files/folders/favorite`, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({ path, userId: this.userId })
+      // })
+      // /api/folders/SetFavoriteFolder ==> mettre dossier en favori
+      const response = await fetch(`${this.baseUrl}/folders/SetFavoriteFolder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -575,7 +605,10 @@ class FileService {
 
   async searchFiles(query: string): Promise<FileItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/search?query=${encodeURIComponent(query)}&userId=${this.userId}`)
+        // /api/files/SearchFiles => rechercher des fichiers par nom
+      const response = await fetch(
+          `${this.baseUrl}/files/SearchFiles?query=${encodeURIComponent(query)}&userId=${this.userId}`
+      )
       if (!response.ok) throw new Error('Erreur lors de la recherche')
       const files: FileDto[] = await response.json()
       return files.map(file => this.fileDtoToFileItem(file))
@@ -587,7 +620,10 @@ class FileService {
 
   async searchFolders(query: string): Promise<FileItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/folders/search?query=${encodeURIComponent(query)}&userId=${this.userId}`)
+        // /api/folders/searchFolders => rechercher des dossiers par nom
+      const response = await fetch(
+          `${this.baseUrl}/folders/searchFolders?query=${encodeURIComponent(query)}&userId=${this.userId}`
+      )
       if (!response.ok) throw new Error('Erreur lors de la recherche')
       const folders: FolderDto[] = await response.json()
       return folders.map(folder => this.folderDtoToFileItem(folder))
@@ -600,7 +636,10 @@ class FileService {
 
   async searchFilesByType(contentType: string): Promise<FileItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/search/type?contentType=${encodeURIComponent(contentType)}&userId=${this.userId}`)
+        // /api/files/SearchFilesByType => rechercher des fichiers par type MIME
+      const response = await fetch(
+          `${this.baseUrl}/files/SearchFilesByType?contentType=${encodeURIComponent(contentType)}&userId=${this.userId}`
+      )
       if (!response.ok) throw new Error('Erreur lors de la recherche par type')
       const files: FileDto[] = await response.json()
       return files.map(file => this.fileDtoToFileItem(file))
@@ -614,7 +653,8 @@ class FileService {
 
   async findMusicFiles(): Promise<FileItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/audio?userId=${this.userId}`)
+      // /api/files/GetMusicFiles => rechercher des fichiers musicaux
+      const response = await fetch(`${this.baseUrl}/files/GetAudioFiles?userId=${this.userId}`)
       if (!response.ok) throw new Error('Erreur lors de la recherche de fichiers musicaux')
       const files: FileDto[] = await response.json()
       return files.map(file => this.fileDtoToFileItem(file))
@@ -626,7 +666,8 @@ class FileService {
 
   async findImageFiles(): Promise<FileItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/images?userId=${this.userId}`)
+        // /api/files/GetImageFiles => rechercher des fichiers images
+      const response = await fetch(`${this.baseUrl}/files/GetImageFiles?userId=${this.userId}`)
       if (!response.ok) throw new Error('Erreur lors de la recherche de fichiers images')
       const files: FileDto[] = await response.json()
       return files.map(file => this.fileDtoToFileItem(file))
@@ -638,7 +679,8 @@ class FileService {
 
   async findTextFiles(): Promise<FileItem[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/text?userId=${this.userId}`)
+      // /api/files/text => rechercher des fichiers texte
+      const response = await fetch(`${this.baseUrl}/files/GetTextFiles?userId=${this.userId}`)
       if (!response.ok) throw new Error('Erreur lors de la recherche de fichiers texte')
       const files: FileDto[] = await response.json()
       return files.map(file => this.fileDtoToFileItem(file))
@@ -652,7 +694,9 @@ class FileService {
 
   async getFolderItemCount(path: string): Promise<number> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/count?path=${encodeURIComponent(path)}&userId=${this.userId}`)
+      const response = await fetch(
+          `${this.baseUrl}/files/CountFilesByPath?path=${encodeURIComponent(path)}&userId=${this.userId}`
+      )
       if (!response.ok) throw new Error('Erreur lors du comptage')
       return await response.json()
     } catch (error) {
@@ -666,7 +710,7 @@ class FileService {
   private isMusicFile(file: FileItem): boolean {
     const musicExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma']
     const musicMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/ogg', 'audio/mp4', 'audio/x-ms-wma']
-    
+
     const lastDotIndex = file.name.lastIndexOf('.')
     const extension = lastDotIndex > 0 ? file.name.toLowerCase().substring(lastDotIndex) : ''
     return musicExtensions.includes(extension) || (!!file.mimeType && musicMimeTypes.includes(file.mimeType))
