@@ -112,10 +112,10 @@ export function Desktop() {
       },
       {
         id: "settings",
-        name: "Paramètres",
+        name: "Personnaliser le bureau",
         icon: "⚙️",
         type: "settings",
-        description: "Configuration système",
+        description: "Personnaliser le fond d'écran et les couleurs",
       },
     ],
     [],
@@ -169,6 +169,12 @@ export function Desktop() {
     if ("type" in item && item.type !== "file" && item.type !== "folder") {
       // C'est une application
       const app = item as DesktopApp
+      
+      if (app.type === "settings") {
+        setShowWallpaperSelector(true)
+        return
+      }
+      
       const appSizes = {
         calculator: { width: 320, height: 480 },
         "text-editor": { width: 800, height: 600 },

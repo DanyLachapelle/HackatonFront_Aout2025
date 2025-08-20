@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import { Calculator } from "@/components/apps/calculator"
 import { Clock } from "@/components/apps/clock"
 import { Calendar } from "@/components/apps/calendar"
-import { Settings } from "@/components/apps/settings"
+
 import { Paint } from "@/components/apps/paint"
 import { MusicPlayer } from "@/components/apps/music-player"
 import { ImageGallery } from "@/components/apps/image-gallery"
@@ -317,7 +317,13 @@ export function Window({ window }: WindowProps) {
       case "calendar":
         return <Calendar />
       case "settings":
-        return <Settings />
+        return <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="text-center">
+            <div className="text-4xl mb-4">⚙️</div>
+            <div className="text-lg font-medium">Personnaliser le bureau</div>
+            <div className="text-sm">Utilisez le bouton dans la barre des tâches</div>
+          </div>
+        </div>
       case "paint":
         return <Paint windowId={window.id} />
       case "music-player":
