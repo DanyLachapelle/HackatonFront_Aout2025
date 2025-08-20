@@ -9,9 +9,10 @@ import { DesktopContextMenu } from "./desktop-context-menu"
 import { WallpaperSelector } from "./wallpaper-selector"
 import { fileService } from "@/services/file-service"
 import { useCustomAlert, CustomAlert } from "@/components/ui/custom-alert"
+import { DesktopModals } from "./desktop-modals"
 
 export function Desktop() {
-  const { files, loadFiles } = useFileStore()
+  const { files, loadFiles, refreshFiles } = useFileStore()
   const { openWindow } = useWindowStore()
   const { 
     wallpaper, 
@@ -27,7 +28,14 @@ export function Desktop() {
   } = useDesktopStore()
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; selectedItem?: FileItem | null } | null>(null)
   const [selectedDesktopItems, setSelectedDesktopItems] = useState<string[]>([])
-  const { showError, alert, hideAlert } = useCustomAlert()
+  const { showError, showSuccess, alert, hideAlert } = useCustomAlert()
+  
+  // États pour les modals
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<FileItem | null>(null)
+  const [showRenameDialog, setShowRenameDialog] = useState(false)
+  const [renameTarget, setRenameTarget] = useState<FileItem | null>(null)
+  const [newName, setNewName] = useState("")
 
   // Gestionnaire d'événements clavier global pour le bureau
   useEffect(() => {
@@ -71,7 +79,7 @@ export function Desktop() {
       {
         id: "image-gallery",
         name: "Galerie",
-        icon: "🖼️",
+        icon: "📱",
         type: "image-gallery",
         description: "Visionneuse d'images",
       },
@@ -106,7 +114,7 @@ export function Desktop() {
       {
         id: "music-player",
         name: "Musique",
-        icon: "🎵",
+        icon: "🎧",
         type: "music-player",
         description: "Lecteur audio",
       },
@@ -278,9 +286,17 @@ export function Desktop() {
 
   const handleContextMenu = (e: React.MouseEvent, item?: FileItem | DesktopApp) => {
     e.preventDefault()
-    // Ne garder que les FileItem pour le menu contextuel (les DesktopApp n'ont pas de menu contextuel)
-    const fileItem = 'path' in (item || {}) ? item as FileItem : null
-    setContextMenu({ x: e.clientX, y: e.clientY, selectedItem: fileItem })
+    e.stopPropagation()
+    
+    // Si on clique sur un élément spécifique (fichier/dossier), afficher le menu avec cet élément
+    if (item) {
+      // Ne garder que les FileItem pour le menu contextuel (les DesktopApp n'ont pas de menu contextuel)
+      const fileItem = 'path' in item ? item as FileItem : null
+      setContextMenu({ x: e.clientX, y: e.clientY, selectedItem: fileItem })
+    } else {
+      // Si on clique sur l'espace vide, afficher le menu général sans élément sélectionné
+      setContextMenu({ x: e.clientX, y: e.clientY, selectedItem: null })
+    }
   }
 
   const handleIconPositionChange = (id: string, newPosition: { x: number; y: number }) => {
@@ -296,6 +312,15 @@ export function Desktop() {
       }
     })
   }
+
+  // Debug logs
+  console.log('🔍 État des modals dans Desktop:', {
+    showDeleteDialog,
+    showRenameDialog,
+    deleteTarget: deleteTarget?.name,
+    renameTarget: renameTarget?.name,
+    newName
+  })
 
   // Gestion du drag & drop pour ajouter des fichiers au bureau
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -357,7 +382,12 @@ export function Desktop() {
     <div
       className="absolute inset-0 transition-all duration-300"
       style={getWallpaperStyle()}
-      onContextMenu={handleContextMenu}
+      onContextMenu={(e) => {
+        // Ne capturer le clic droit que si on clique sur l'espace vide (pas sur un icône)
+        if (e.target === e.currentTarget) {
+          handleContextMenu(e)
+        }
+      }}
       onClick={() => setContextMenu(null)}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
@@ -394,13 +424,93 @@ export function Desktop() {
             setShowWallpaperSelector(true)
             setContextMenu(null)
           }}
+          onDelete={(item) => {
+            setDeleteTarget(item)
+            setShowDeleteDialog(true)
+            setContextMenu(null)
+          }}
+          onRename={(item) => {
+            setRenameTarget(item)
+            setNewName(item.name)
+            setShowRenameDialog(true)
+            setContextMenu(null)
+          }}
         />
       )}
 
       {/* Sélecteur de fond d'écran */}
       {showWallpaperSelector && <WallpaperSelector />}
 
+      {/* Modals */}
+      <DesktopModals
+        showDeleteDialog={showDeleteDialog}
+        showRenameDialog={showRenameDialog}
+        deleteTarget={deleteTarget}
+        renameTarget={renameTarget}
+        newName={newName}
+        onDeleteClose={() => {
+          setShowDeleteDialog(false)
+          setDeleteTarget(null)
+        }}
+        onRenameClose={() => {
+          setShowRenameDialog(false)
+          setRenameTarget(null)
+          setNewName("")
+        }}
+        onConfirmDelete={async () => {
+          if (!deleteTarget) return
+          
+          try {
+            if (deleteTarget.type === "folder") {
+              await fileService.deleteFolder(deleteTarget.id)
+            } else {
+              await fileService.deleteFileById(deleteTarget.id)
+            }
+            
+            // Rafraîchir la liste des fichiers et le bureau
+            await refreshFiles()
+            await refreshDesktopFiles()
+            console.log(`Élément "${deleteTarget.name}" supprimé avec succès`)
+            showSuccess(`"${deleteTarget.name}" supprimé avec succès`, 'Suppression réussie')
+          } catch (error) {
+            console.error('Erreur lors de la suppression:', error)
+            showError(`Erreur lors de la suppression: ${error}`, 'Erreur de suppression')
+          } finally {
+            setShowDeleteDialog(false)
+            setDeleteTarget(null)
+          }
+        }}
+        onConfirmRename={async () => {
+          if (!renameTarget || !newName.trim() || newName.trim() === renameTarget.name) {
+            setShowRenameDialog(false)
+            setRenameTarget(null)
+            setNewName("")
+            return
+          }
 
+          try {
+            if (renameTarget.type === "folder") {
+              await fileService.renameFolder(renameTarget.id, newName.trim())
+            } else {
+              await fileService.renameFile(renameTarget.id, newName.trim())
+            }
+            
+            // Rafraîchir la liste des fichiers et le bureau
+            await refreshFiles()
+            await refreshDesktopFiles()
+            console.log(`Élément renommé en "${newName.trim()}"`)
+            showSuccess(`"${renameTarget.name}" renommé en "${newName.trim()}"`, 'Renommage réussi')
+          } catch (error) {
+            console.error('Erreur lors du renommage:', error)
+            showError(`Erreur lors du renommage: ${error}`, 'Erreur de renommage')
+          } finally {
+            setShowRenameDialog(false)
+            setRenameTarget(null)
+            setNewName("")
+          }
+        }}
+        onNewNameChange={(value) => setNewName(value)}
+      />
     </div>
   )
 } 

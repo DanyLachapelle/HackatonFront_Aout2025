@@ -67,6 +67,8 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   const [newItemName, setNewItemName] = useState("")
   const [showDetails, setShowDetails] = useState(false)
   const [detailsItem, setDetailsItem] = useState<FileItem | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<FileItem[]>([])
 
 
   const [folderCounts, setFolderCounts] = useState<{ [key: string]: number }>({});
@@ -140,6 +142,12 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   // Gestion des raccourcis clavier
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Ne pas capturer les touches si un input est focalisé
+      const activeElement = document.activeElement
+      if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+        return
+      }
+
       if (event.ctrlKey || event.metaKey) {
         switch (event.key) {
           case 'a':
@@ -166,10 +174,16 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       } else if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault()
         deleteSelected()
-      } else if (event.key === 'Escape') {
-        setSelectedFiles([])
-        setShowContextMenu(false)
-      }
+             } else if (event.key === 'Escape') {
+         setSelectedFiles([])
+         setShowContextMenu(false)
+       } else if (event.key === 'F2' && selectedFiles.length === 1) {
+         event.preventDefault()
+         const selectedFile = files.find(f => f.id === selectedFiles[0])
+         if (selectedFile) {
+           renameItem(selectedFile)
+         }
+       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
@@ -611,37 +625,43 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   const deleteSelected = async () => {
     if (selectedFiles.length === 0) return
     
-    if (confirm(`Supprimer ${selectedFiles.length} élément(s) ?`)) {
-      try {
-        // Récupérer les éléments sélectionnés
-        const selectedItems = files.filter(f => selectedFiles.includes(f.id))
-        
-        // Supprimer chaque élément via le backend
-        for (const item of selectedItems) {
-          if (item.type === "folder") {
-            await fileService.deleteFolder(item.id)
-            console.log(`Dossier "${item.name}" supprimé avec succès`)
-          } else {
-            await fileService.deleteFileById(item.id)
-            console.log(`Fichier "${item.name}" supprimé avec succès`)
-          }
+    // Récupérer les éléments sélectionnés
+    const selectedItems = files.filter(f => selectedFiles.includes(f.id))
+    setDeleteTarget(selectedItems)
+    setShowDeleteDialog(true)
+  }
+
+  const confirmDelete = async () => {
+    try {
+      // Supprimer chaque élément via le backend
+      for (const item of deleteTarget) {
+        if (item.type === "folder") {
+          await fileService.deleteFolder(item.id)
+          console.log(`Dossier "${item.name}" supprimé avec succès`)
+        } else {
+          await fileService.deleteFileById(item.id)
+          console.log(`Fichier "${item.name}" supprimé avec succès`)
         }
-        
-        // Supprimer visuellement de l'interface
-        setFiles(prev => prev.filter(f => !selectedFiles.includes(f.id)))
-        setSelectedFiles([])
-        
-        // Si on est dans le dossier Bureau, rafraîchir le bureau
-        if (currentPath === '/bureau') {
-          console.log('🖥️ Rafraîchissement du bureau après suppression...')
-          await refreshDesktopFiles()
-        }
-        
-        console.log(`${selectedItems.length} élément(s) supprimé(s) avec succès`)
-      } catch (error) {
-        console.error('Erreur lors de la suppression:', error)
-        showError(`Erreur lors de la suppression: ${error}`, 'Erreur de suppression')
       }
+      
+      // Supprimer visuellement de l'interface
+      setFiles(prev => prev.filter(f => !deleteTarget.map(item => item.id).includes(f.id)))
+      setSelectedFiles([])
+      
+      // Si on est dans le dossier Bureau, rafraîchir le bureau
+      if (currentPath === '/bureau') {
+        console.log('🖥️ Rafraîchissement du bureau après suppression...')
+        await refreshDesktopFiles()
+      }
+      
+      console.log(`${deleteTarget.length} élément(s) supprimé(s) avec succès`)
+      showSuccess(`${deleteTarget.length} élément(s) supprimé(s) avec succès`, 'Suppression réussie')
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error)
+      showError(`Erreur lors de la suppression: ${error}`, 'Erreur de suppression')
+    } finally {
+      setShowDeleteDialog(false)
+      setDeleteTarget([])
     }
   }
 
@@ -1022,6 +1042,43 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
   const showItemDetails = (file: FileItem) => {
     setDetailsItem(file)
     setShowDetails(true)
+  }
+
+  const renameItem = async (file: FileItem) => {
+    // Empêcher le renommage des dossiers système
+    if (file.type === "folder") {
+      const folderName = file.name.toLowerCase()
+      if (["bureau", "musique", "images", "documents"].includes(folderName)) {
+        showError("Impossible de renommer un dossier système.", "Les dossiers système ne peuvent pas être renommés.")
+        return
+      }
+    }
+
+    const newName = prompt(`Renommer "${file.name}" :`, file.name)
+    if (!newName || newName.trim() === "" || newName === file.name) {
+      return
+    }
+
+    try {
+      if (file.type === "folder") {
+        await fileService.renameFolder(file.id, newName.trim())
+      } else {
+        await fileService.renameFile(file.id, newName.trim())
+      }
+      
+      // Recharger les fichiers
+      await loadFiles(currentPath)
+      
+      // Si on est dans le dossier Bureau, rafraîchir le bureau
+      if (currentPath === '/bureau') {
+        await refreshDesktopFiles()
+      }
+      
+      showSuccess(`"${file.name}" renommé en "${newName.trim()}"`, "Renommage réussi")
+    } catch (error) {
+      console.error('Erreur lors du renommage:', error)
+      showError(`Erreur lors du renommage: ${error}`, 'Erreur de renommage')
+    }
   }
 
   const filteredAndSortedFiles = files
@@ -1504,7 +1561,12 @@ Vous pouvez toujours :
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onContextMenu={(e) => handleContextMenu(e)}
+        onContextMenu={(e) => {
+          // Ne capturer le clic droit que si on clique sur l'espace vide (pas sur un fichier)
+          if (e.target === e.currentTarget) {
+            handleContextMenu(e)
+          }
+        }}
       >
         {viewMode === "list" ? (
           <div className="p-3">
@@ -1530,7 +1592,10 @@ Vous pouvez toujours :
                         }`}
                         onClick={(e) => handleFileClick(file, e)}
                         onDoubleClick={() => handleFileDoubleClick(file)}
-                        onContextMenu={(e) => handleContextMenu(e, file)}
+                        onContextMenu={(e) => {
+                          e.stopPropagation()
+                          handleContextMenu(e, file)
+                        }}
                     >
                       <td className="p-2">
                         <div className="flex items-center space-x-2">
@@ -1600,7 +1665,10 @@ Vous pouvez toujours :
                   }`}
                   onClick={(e) => handleFileClick(file, e)}
                   onDoubleClick={() => handleFileDoubleClick(file)}
-                  onContextMenu={(e) => handleContextMenu(e, file)}
+                  onContextMenu={(e) => {
+                    e.stopPropagation()
+                    handleContextMenu(e, file)
+                  }}
                 >
                   <div className="flex flex-col items-center text-center">
                     {getFileIcon(file)}
@@ -1657,221 +1725,234 @@ Vous pouvez toujours :
           </div>
           <div className="flex items-center space-x-4">
             <span>Dossier: {currentPath}</span>
-            {selectedFiles.length > 0 && (
-              <div className="flex items-center space-x-2 text-xs text-gray-500">
-                <span>Ctrl+A: Tout sélectionner</span>
-                <span>Ctrl+C: Copier</span>
-                <span>Ctrl+X: Couper</span>
-                <span>Ctrl+Z: Archiver</span>
-                <span>Del: Supprimer</span>
-                <span>Glisser: Sélection multiple</span>
-              </div>
-            )}
+                         {selectedFiles.length > 0 && (
+               <div className="flex items-center space-x-2 text-xs text-gray-500">
+                 <span>Ctrl+A: Tout sélectionner</span>
+                 <span>Ctrl+C: Copier</span>
+                 <span>Ctrl+X: Couper</span>
+                 <span>Ctrl+Z: Archiver</span>
+                 <span>Del: Supprimer</span>
+                 <span>F2: Renommer</span>
+                 <span>Glisser: Sélection multiple</span>
+               </div>
+             )}
           </div>
         </div>
       </div>
 
-      {/* Menu contextuel */}
-      {showContextMenu && (
-        <div
-          className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1"
-          style={{ left: contextMenuPosition.x, top: contextMenuPosition.y }}
-        >
-          {/* Options d'affichage */}
-          <div className="relative">
-          <button
-              onMouseEnter={() => setShowViewSubmenu(true)}
-              onMouseLeave={() => setShowViewSubmenu(false)}
-              className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
-            >
-              <div className="flex items-center space-x-2">
-                <span>👁️</span>
-                <span>Affichage</span>
-              </div>
-              <span className="text-xs">▶</span>
-            </button>
-            
-            {showViewSubmenu && (
-              <div 
-                className="absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-40"
-                onMouseEnter={() => setShowViewSubmenu(true)}
-                onMouseLeave={() => setShowViewSubmenu(false)}
-              >
-                <button
-                  onClick={() => {
-                    setViewMode("list")
-                    setShowViewSubmenu(false)
-                    setShowContextMenu(false)
-                  }}
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
-                >
-                  <span>📋</span>
-                  <span>Liste</span>
-                </button>
-                <button
-            onClick={() => {
-                    setViewMode("grid")
-                    setShowViewSubmenu(false)
-              setShowContextMenu(false)
-            }}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
-                >
-                  <span>🔲</span>
-                  <span>Grille</span>
-                </button>
-              </div>
-            )}
-          </div>
+             {/* Menu contextuel */}
+       {showContextMenu && (
+         <div
+           className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1"
+           style={{ left: contextMenuPosition.x, top: contextMenuPosition.y }}
+         >
+           {/* Si on clique sur un fichier/dossier spécifique, afficher seulement les options pour cet élément */}
+           {contextMenuTarget ? (
+             <>
+               <button
+                 onClick={() => {
+                   showItemDetails(contextMenuTarget)
+                   setShowContextMenu(false)
+                 }}
+                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+               >
+                 <InfoIcon className="w-4 h-4" />
+                 <span>Propriétés</span>
+               </button>
 
-          <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
+               <button
+                 onClick={() => {
+                   renameItem(contextMenuTarget)
+                   setShowContextMenu(false)
+                 }}
+                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+               >
+                 <EditIcon className="w-4 h-4" />
+                 <span>Renommer</span>
+               </button>
 
-          {/* Nouveau */}
-          <div className="relative">
-            <button
-              onMouseEnter={() => setShowNewSubmenu(true)}
-              onMouseLeave={() => setShowNewSubmenu(false)}
-              className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
-            >
-              <div className="flex items-center space-x-2">
-                <span>➕</span>
-                <span>Nouveau</span>
-              </div>
-              <span className="text-xs">▶</span>
-            </button>
-            
-            {showNewSubmenu && (
-              <div 
-                className="absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-40"
-                onMouseEnter={() => setShowNewSubmenu(true)}
-                onMouseLeave={() => setShowNewSubmenu(false)}
-              >
-                <button
-                  onClick={() => {
-                    createNewFolderFromContext()
-                    setShowNewSubmenu(false)
-                  }}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
-                >
-                  <span>📁</span>
-                  <span>Dossier</span>
-                </button>
-                <button
-                  onClick={() => {
-                    createNewFileFromContext()
-                    setShowNewSubmenu(false)
-                  }}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
-                >
-                  <span>📄</span>
-                  <span>Document texte</span>
-                </button>
-              </div>
-            )}
-          </div>
+               <button
+                 onClick={() => {
+                   setSelectedFiles([contextMenuTarget.id])
+                   copySelected()
+                   setShowContextMenu(false)
+                 }}
+                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+               >
+                 <CopyIcon className="w-4 h-4" />
+                 <span>Copier</span>
+               </button>
 
-          <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
+               <button
+                 onClick={() => {
+                   setSelectedFiles([contextMenuTarget.id])
+                   cutSelected()
+                   setShowContextMenu(false)
+                 }}
+                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+               >
+                 <ScissorsIcon className="w-4 h-4" />
+                 <span>Couper</span>
+               </button>
 
-          {/* Actions générales */}
-          <button
-            onClick={() => {
-              refreshCurrentFolder()
-              setShowContextMenu(false)
-            }}
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
-          >
-            <span>🔄</span>
-            <span>Actualiser</span>
-          </button>
+               <button
+                 onClick={() => {
+                   setSelectedFiles([contextMenuTarget.id])
+                   createArchive()
+                   setShowContextMenu(false)
+                 }}
+                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+               >
+                 <ArchiveIcon className="w-4 h-4" />
+                 <span>Archiver</span>
+               </button>
 
-          <button
-            onClick={() => {
-              pasteFiles()
-              setShowContextMenu(false)
-            }}
-            disabled={!clipboard}
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-          >
-            <span>📋</span>
-            <span>Coller</span>
-          </button>
+               <button
+                 onClick={() => {
+                   setSelectedFiles([contextMenuTarget.id])
+                   deleteSelected()
+                   setShowContextMenu(false)
+                 }}
+                 className="w-full px-4 py-2 text-left hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center space-x-2"
+               >
+                 <TrashIcon className="w-4 h-4" />
+                 <span>Supprimer</span>
+               </button>
+             </>
+           ) : (
+             /* Si on clique sur l'espace vide, afficher les options générales */
+             <>
+               {/* Options d'affichage */}
+               <div className="relative">
+                 <button
+                   onMouseEnter={() => setShowViewSubmenu(true)}
+                   onMouseLeave={() => setShowViewSubmenu(false)}
+                   className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
+                 >
+                   <div className="flex items-center space-x-2">
+                     <span>👁️</span>
+                     <span>Affichage</span>
+                   </div>
+                   <span className="text-xs">▶</span>
+                 </button>
+                 
+                 {showViewSubmenu && (
+                   <div 
+                     className="absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-40"
+                     onMouseEnter={() => setShowViewSubmenu(true)}
+                     onMouseLeave={() => setShowViewSubmenu(false)}
+                   >
+                     <button
+                       onClick={() => {
+                         setViewMode("list")
+                         setShowViewSubmenu(false)
+                         setShowContextMenu(false)
+                       }}
+                       className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                     >
+                       <span>📋</span>
+                       <span>Liste</span>
+                     </button>
+                     <button
+                       onClick={() => {
+                         setViewMode("grid")
+                         setShowViewSubmenu(false)
+                         setShowContextMenu(false)
+                       }}
+                       className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                     >
+                       <span>🔲</span>
+                       <span>Grille</span>
+                     </button>
+                   </div>
+                 )}
+               </div>
 
-          <button
-            onClick={() => {
-              addFilesFromComputer()
-            }}
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
-          >
-            <span>📤</span>
-            <span>Ajouter des fichiers</span>
-          </button>
+               <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
 
-          {/* Actions sur l'élément sélectionné */}
-          {contextMenuTarget && (
-            <>
-              <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
-              
-              <button
-                onClick={() => {
-                  showItemDetails(contextMenuTarget)
-                  setShowContextMenu(false)
-                }}
-                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
-          >
-            <InfoIcon className="w-4 h-4" />
-            <span>Propriétés</span>
-          </button>
-              
-          <button
-            onClick={() => {
-                setSelectedFiles([contextMenuTarget.id])
-                copySelected()
-              setShowContextMenu(false)
-            }}
-                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
-          >
-            <CopyIcon className="w-4 h-4" />
-            <span>Copier</span>
-          </button>
-              
-                      <button
-              onClick={() => {
-                  setSelectedFiles([contextMenuTarget.id])
-                  cutSelected()
-                setShowContextMenu(false)
-              }}
-                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
-            >
-              <ScissorsIcon className="w-4 h-4" />
-              <span>Couper</span>
-            </button>
-              
-          <button
-            onClick={() => {
-                setSelectedFiles([contextMenuTarget.id])
-                  createArchive()
-              setShowContextMenu(false)
-            }}
-                className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
-          >
-                <ArchiveIcon className="w-4 h-4" />
-                <span>Archiver</span>
-          </button>
-              
-          <button
-            onClick={() => {
-                setSelectedFiles([contextMenuTarget.id])
-                  deleteSelected()
-              setShowContextMenu(false)
-            }}
-                className="w-full px-4 py-2 text-left hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center space-x-2"
-          >
-                <TrashIcon className="w-4 h-4" />
-                <span>Supprimer</span>
-          </button>
-            </>
-          )}
-        </div>
-      )}
+               {/* Nouveau */}
+               <div className="relative">
+                 <button
+                   onMouseEnter={() => setShowNewSubmenu(true)}
+                   onMouseLeave={() => setShowNewSubmenu(false)}
+                   className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
+                 >
+                   <div className="flex items-center space-x-2">
+                     <span>➕</span>
+                     <span>Nouveau</span>
+                   </div>
+                   <span className="text-xs">▶</span>
+                 </button>
+                 
+                 {showNewSubmenu && (
+                   <div 
+                     className="absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-40"
+                     onMouseEnter={() => setShowNewSubmenu(true)}
+                     onMouseLeave={() => setShowNewSubmenu(false)}
+                   >
+                     <button
+                       onClick={() => {
+                         createNewFolderFromContext()
+                         setShowNewSubmenu(false)
+                       }}
+                       className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                     >
+                       <span>📁</span>
+                       <span>Dossier</span>
+                     </button>
+                     <button
+                       onClick={() => {
+                         createNewFileFromContext()
+                         setShowNewSubmenu(false)
+                       }}
+                       className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+                     >
+                       <span>📄</span>
+                       <span>Document texte</span>
+                     </button>
+                   </div>
+                 )}
+               </div>
+
+               <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
+
+               {/* Actions générales */}
+               <button
+                 onClick={() => {
+                   refreshCurrentFolder()
+                   setShowContextMenu(false)
+                 }}
+                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+               >
+                 <span>🔄</span>
+                 <span>Actualiser</span>
+               </button>
+
+               <button
+                 onClick={() => {
+                   pasteFiles()
+                   setShowContextMenu(false)
+                 }}
+                 disabled={!clipboard}
+                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+               >
+                 <span>📋</span>
+                 <span>Coller</span>
+               </button>
+
+               <button
+                 onClick={() => {
+                   addFilesFromComputer()
+                 }}
+                 className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+               >
+                 <span>📤</span>
+                 <span>Ajouter des fichiers</span>
+               </button>
+             </>
+           )}
+         </div>
+       )}
 
       {/* Dialogue de création */}
       {showCreateDialog && (
@@ -1885,7 +1966,17 @@ Vous pouvez toujours :
                 placeholder={`Nom du ${createType === "folder" ? "dossier" : "fichier"}`}
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && createNewItem()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    createNewItem()
+                  } else if (e.key === "Escape") {
+                    e.preventDefault()
+                    setShowCreateDialog(false)
+                    setNewItemName("")
+                  }
+                  // Ne pas empêcher les autres touches (comme Backspace, Delete, etc.)
+                }}
                 className="mb-4"
                 autoFocus
               />
@@ -1928,7 +2019,7 @@ Vous pouvez toujours :
                   <span className="text-sm text-gray-600">Taille:</span>
                   <span className="text-sm">
                     {detailsItem.type === "folder" 
-                      ? `${filteredAndSortedFiles.filter(f => f.type === "file").length} éléments`
+                      ? `${folderCounts[detailsItem.id] ?? "..."} éléments`
                       : formatFileSize(detailsItem.size)
                     }
                   </span>
@@ -1967,14 +2058,88 @@ Vous pouvez toujours :
         />
       )}
 
-      {/* Alerte personnalisée */}
-      <CustomAlert
-        type={alert.type}
-        title={alert.title}
-        message={alert.message}
-        onClose={hideAlert}
-        show={alert.show}
-      />
-    </div>
-  )
-} 
+             {/* Dialogue de suppression stylisé */}
+       {showDeleteDialog && (
+         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+           <Card className="w-96">
+             <CardContent className="p-6">
+               <div className="flex items-center space-x-3 mb-4">
+                 <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                   <TrashIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
+                 </div>
+                 <div>
+                   <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">
+                     Confirmer la suppression
+                   </h3>
+                   <p className="text-sm text-gray-500">
+                     Cette action est irréversible
+                   </p>
+                 </div>
+               </div>
+               
+               <div className="mb-4">
+                 <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                   Êtes-vous sûr de vouloir supprimer {deleteTarget.length} élément(s) ?
+                 </p>
+                 
+                 {deleteTarget.length <= 5 && (
+                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 max-h-32 overflow-y-auto">
+                     {deleteTarget.map((item, index) => (
+                       <div key={item.id} className="flex items-center space-x-2 text-sm">
+                         {getFileIcon(item)}
+                         <span className="truncate">{item.name}</span>
+                         <span className="text-gray-500 text-xs">
+                           ({item.type === 'folder' ? 'Dossier' : 'Fichier'})
+                         </span>
+                       </div>
+                     ))}
+                   </div>
+                 )}
+                 
+                 {deleteTarget.length > 5 && (
+                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                     <p className="text-sm text-gray-600 dark:text-gray-400">
+                       {deleteTarget.length} éléments sélectionnés
+                     </p>
+                     <p className="text-xs text-gray-500 mt-1">
+                       {deleteTarget.filter(item => item.type === 'folder').length} dossier(s) et{' '}
+                       {deleteTarget.filter(item => item.type === 'file').length} fichier(s)
+                     </p>
+                   </div>
+                 )}
+               </div>
+               
+               <div className="flex justify-end space-x-2">
+                 <Button
+                   variant="outline"
+                   onClick={() => {
+                     setShowDeleteDialog(false)
+                     setDeleteTarget([])
+                   }}
+                 >
+                   Annuler
+                 </Button>
+                 <Button 
+                   variant="destructive"
+                   onClick={confirmDelete}
+                   className="bg-red-600 hover:bg-red-700 text-white"
+                 >
+                   Supprimer
+                 </Button>
+               </div>
+             </CardContent>
+           </Card>
+         </div>
+       )}
+
+       {/* Alerte personnalisée */}
+       <CustomAlert
+         type={alert.type}
+         title={alert.title}
+         message={alert.message}
+         onClose={hideAlert}
+         show={alert.show}
+       />
+     </div>
+   )
+ } 

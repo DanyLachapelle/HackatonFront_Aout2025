@@ -7,6 +7,8 @@ import { useDesktopStore } from "@/stores/desktop-store"
 import { fileService } from "@/services/file-service"
 import { cn } from "@/lib/utils"
 import { useCustomAlert, CustomAlert } from "@/components/ui/custom-alert"
+import { Button } from "@/components/ui/button"
+
 
 interface DesktopContextMenuProps {
   x: number
@@ -14,16 +16,18 @@ interface DesktopContextMenuProps {
   onClose: () => void
   onPersonalize: () => void
   selectedItem?: FileItem | null
+  onDelete: (item: FileItem) => void
+  onRename: (item: FileItem) => void
 }
 
-export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem }: DesktopContextMenuProps) {
+export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem, onDelete, onRename }: DesktopContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const [showViewSubmenu, setShowViewSubmenu] = useState(false)
   const [showNewSubmenu, setShowNewSubmenu] = useState(false)
   const { openWindow } = useWindowStore()
   const { refreshFiles } = useFileStore()
   const { refreshDesktopFiles, setIconSize, iconSize, reorganizeIcons } = useDesktopStore()
-  const { showError, showSuccess, alert, hideAlert } = useCustomAlert()
+  const { showError, alert, hideAlert } = useCustomAlert()
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -132,24 +136,27 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
         setIconSize("small")
         reorganizeIcons()
         break
-             case "view-list":
-         console.log("Vue liste")
-         // TODO: Implémenter le changement de vue
-         break
-       case "delete":
-         if (selectedItem) {
-           await deleteSelectedItem(selectedItem)
-         }
-         break
-       case "rename":
-         if (selectedItem) {
-           await renameSelectedItem(selectedItem)
-         }
-         break
-       default:
-         break
+      case "view-list":
+        console.log("Vue liste")
+        // TODO: Implémenter le changement de vue
+        break
+      case "delete":
+        if (selectedItem) {
+          onDelete(selectedItem)
+        }
+        break
+      case "rename":
+        if (selectedItem) {
+          onRename(selectedItem)
+        }
+        break
+      default:
+        break
     }
-    onClose()
+    // Ne pas fermer le menu pour les actions delete et rename
+    if (action !== "delete" && action !== "rename") {
+      onClose()
+    }
   }
 
   const createNewFolder = async () => {
@@ -199,47 +206,8 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
     }
   }
 
-  const deleteSelectedItem = async (item: FileItem) => {
-    try {
-      const confirmMessage = `Êtes-vous sûr de vouloir supprimer "${item.name}" ?`
-      if (!confirm(confirmMessage)) return
-
-      if (item.type === "folder") {
-        await fileService.deleteFolder(item.id)
-      } else {
-        await fileService.deleteFileById(item.id)
-      }
-      
-      // Rafraîchir la liste des fichiers et le bureau
-      await refreshFiles()
-      await refreshDesktopFiles()
-      console.log(`Élément "${item.name}" supprimé avec succès`)
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error)
-      showError("Erreur de suppression", "Impossible de supprimer l'élément. Veuillez réessayer.")
-    }
-  }
-
-  const renameSelectedItem = async (item: FileItem) => {
-    try {
-      const newName = prompt(`Renommer "${item.name}" :`, item.name)
-      if (!newName || newName.trim() === "" || newName === item.name) return
-
-      if (item.type === "folder") {
-        await fileService.renameFolder(item.id, newName.trim())
-      } else {
-        await fileService.renameFile(item.id, newName.trim())
-      }
-      
-      // Rafraîchir la liste des fichiers et le bureau
-      await refreshFiles()
-      await refreshDesktopFiles()
-      console.log(`Élément renommé en "${newName}"`)
-    } catch (error) {
-      console.error('Erreur lors du renommage:', error)
-      showError("Erreur de renommage", "Impossible de renommer l'élément. Veuillez réessayer.")
-    }
-  }
+  // Debug logs
+  console.log('🔍 Menu contextuel:', { selectedItem })
 
   return (
     <div
@@ -251,6 +219,7 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
       }}
     >
       <CustomAlert {...alert} onClose={hideAlert} />
+      
       {/* Options d'affichage */}
       <div className="relative">
         <button
@@ -365,38 +334,38 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem 
 
       <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
 
-             <button
-         onClick={() => handleAction("paste")}
-         className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-       >
-         <span className="mr-3">📤</span>
-         Ajouter des fichiers
-       </button>
+      <button
+        onClick={() => handleAction("paste")}
+        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+      >
+        <span className="mr-3">📤</span>
+        Ajouter des fichiers
+      </button>
 
-       {/* Actions sur l'élément sélectionné */}
-       {selectedItem && (
-         <>
-           <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
-           
-           <button
-             onClick={() => handleAction("rename")}
-             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-           >
-             <span className="mr-3">✏️</span>
-             Renommer
-           </button>
-           
-           <button
-             onClick={() => handleAction("delete")}
-             className="w-full text-left px-3 py-2 text-sm hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center"
-           >
-             <span className="mr-3">🗑️</span>
-             Supprimer
-           </button>
-         </>
-       )}
+      {/* Actions sur l'élément sélectionné */}
+      {selectedItem && (
+        <>
+          <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
+          
+          <button
+            onClick={() => handleAction("rename")}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+          >
+            <span className="mr-3">✏️</span>
+            Renommer
+          </button>
+          
+          <button
+            onClick={() => handleAction("delete")}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center"
+          >
+            <span className="mr-3">🗑️</span>
+            Supprimer
+          </button>
+        </>
+      )}
 
-       <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
+      <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
 
       <button
         onClick={() => handleAction("personalize")}

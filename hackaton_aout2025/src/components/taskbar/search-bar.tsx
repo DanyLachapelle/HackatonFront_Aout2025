@@ -77,7 +77,7 @@ export function SearchBar() {
       id: "image-gallery",
       name: "Galerie d'images",
       type: "Application",
-      icon: "🖼️",
+      icon: "📱",
       keywords: ["image", "photo", "galerie", "gallery"],
     },
     {
@@ -98,7 +98,7 @@ export function SearchBar() {
       id: "music-player",
       name: "Lecteur de musique",
       type: "Application",
-      icon: "🎵",
+      icon: "🎧",
       keywords: ["musique", "music", "audio", "son"],
     },
   ]
