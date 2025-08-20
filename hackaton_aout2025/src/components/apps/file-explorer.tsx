@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { FileViewer } from "@/components/file-viewer/file-viewer"
 import { fileService } from "@/services/file-service"
 import { useDesktopStore } from "@/stores/desktop-store"
 import type { FileItem } from "@/types/file-types"
@@ -68,6 +67,9 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   const [newItemName, setNewItemName] = useState("")
   const [showDetails, setShowDetails] = useState(false)
   const [detailsItem, setDetailsItem] = useState<FileItem | null>(null)
+
+
+  const [folderCounts, setFolderCounts] = useState<{ [key: string]: number }>({});
 
   // États pour les sous-menus du menu contextuel
   const [showNewSubmenu, setShowNewSubmenu] = useState(false)
@@ -208,7 +210,8 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
           setDragSelection(selectedIds)
         }
       }
-    }
+    };
+
 
     const handleGlobalMouseUp = () => {
       if (isDragging) {
@@ -237,6 +240,11 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       document.removeEventListener('mouseup', handleGlobalMouseUp)
     }
   }, [isDragging, dragStart, dragSelection])
+
+
+
+
+
 
   const getFileIcon = (file: FileItem) => {
     // Icônes spéciales pour les dossiers système
@@ -1049,6 +1057,29 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
       return sortOrder === 'asc' ? comparison : -comparison
     })
 
+
+  // Ensuite : tu peux les utiliser dans tes hooks
+  useEffect(() => {
+    const fetchFolderCounts = async () => {
+      const counts: { [key: string]: number } = {}
+      for (const file of filteredAndSortedFiles) {
+        if (file.type === "folder") {
+          try {
+            const count = await fileService.getFolderItemCount(file.path)
+            counts[file.id] = count
+          } catch (err) {
+            console.error(`Erreur lors du comptage du dossier ${file.name}`, err)
+          }
+        }
+      }
+      setFolderCounts(counts)
+    }
+
+    if (filteredAndSortedFiles.length > 0) {
+      fetchFolderCounts()
+    }
+  }, [filteredAndSortedFiles])
+
   // Fonction pour obtenir le contenu des fichiers
   const getFileContent = (fileName: string, extension?: string) => {
     switch (extension) {
@@ -1489,68 +1520,73 @@ Vous pouvez toujours :
               </thead>
               <tbody>
                 {filteredAndSortedFiles.map((file) => (
-                  <tr
-                    key={file.id}
-                    data-file-id={file.id}
-                    className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
-                      selectedFiles.includes(file.id) ? "bg-blue-50 dark:bg-blue-900/20" : ""
-                    } ${
-                      dragSelection.includes(file.id) ? "bg-blue-100 dark:bg-blue-800/30" : ""
-                    }`}
-                    onClick={(e) => handleFileClick(file, e)}
-                    onDoubleClick={() => handleFileDoubleClick(file)}
-                    onContextMenu={(e) => handleContextMenu(e, file)}
-                  >
-                    <td className="p-2">
-                      <div className="flex items-center space-x-2">
-                        {getFileIcon(file)}
-                        <span className="truncate">{file.name}</span>
-                        {file.isFavorite && <StarIcon className="w-4 h-4 text-yellow-500" />}
-                      </div>
-                    </td>
-                    <td className="p-2 text-sm text-gray-600 dark:text-gray-400">
-                      {file.type === "folder" ? `${filteredAndSortedFiles.filter(f => f.type === "file").length} éléments` : formatFileSize(file.size)}
-                    </td>
-                    <td className="p-2 text-sm text-gray-600 dark:text-gray-400">
-                      {file.type === "folder" ? "Dossier" : file.extension?.toUpperCase() || "Fichier"}
-                    </td>
-                    <td className="p-2 text-sm text-gray-600 dark:text-gray-400">
-                      {formatDate(new Date(file.modifiedAt))}
-                    </td>
-                    <td className="p-2">
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            showItemDetails(file)
-                          }}
-                          title="Afficher les détails du fichier"
-                        >
-                          <InfoIcon className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            // Ouvrir le fichier
-                          }}
-                          title="Ouvrir le fichier"
-                        >
-                          <EyeIcon className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+                    <tr
+                        key={file.id}
+                        data-file-id={file.id}
+                        className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
+                            selectedFiles.includes(file.id) ? "bg-blue-50 dark:bg-blue-900/20" : ""
+                        } ${
+                            dragSelection.includes(file.id) ? "bg-blue-100 dark:bg-blue-800/30" : ""
+                        }`}
+                        onClick={(e) => handleFileClick(file, e)}
+                        onDoubleClick={() => handleFileDoubleClick(file)}
+                        onContextMenu={(e) => handleContextMenu(e, file)}
+                    >
+                      <td className="p-2">
+                        <div className="flex items-center space-x-2">
+                          {getFileIcon(file)}
+                          <span className="truncate">{file.name}</span>
+                          {file.isFavorite && <StarIcon className="w-4 h-4 text-yellow-500"/>}
+                        </div>
+                      </td>
+                      {/*<td className="p-2 text-sm text-gray-600 dark:text-gray-400">*/}
+                      {/*  {file.type === "folder" ? `${filteredAndSortedFiles.filter(f => f.type === "file").length} éléments` : formatFileSize(file.size)}*/}
+                      {/*</td>*/}
+                      <td className="p-2 text-sm text-gray-600 dark:text-gray-400">
+                        {file.type === "folder"
+                            ? `${folderCounts[file.id] ?? "..."} éléments`
+                            : formatFileSize(file.size)}
+                      </td>
+                      <td className="p-2 text-sm text-gray-600 dark:text-gray-400">
+                        {file.type === "folder" ? "Dossier" : file.extension?.toUpperCase() || "Fichier"}
+                      </td>
+                      <td className="p-2 text-sm text-gray-600 dark:text-gray-400">
+                        {formatDate(new Date(file.modifiedAt))}
+                      </td>
+                      <td className="p-2">
+                        <div className="flex items-center space-x-1">
+                          <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                showItemDetails(file)
+                              }}
+                              title="Afficher les détails du fichier"
+                          >
+                            <InfoIcon className="w-3 h-3"/>
+                          </Button>
+                          <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                // Ouvrir le fichier
+                              }}
+                              title="Ouvrir le fichier"
+                          >
+                            <EyeIcon className="w-3 h-3"/>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="p-3">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+            <div className="p-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
               {filteredAndSortedFiles.map((file) => (
                 <div
                   key={file.id}
