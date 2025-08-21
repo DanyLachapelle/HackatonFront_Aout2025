@@ -591,22 +591,11 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       // Coller dans le dossier courant
       const targetPath = currentPath
       const isCut = clipboard.action === 'cut'
+      
       for (const item of clipboard.files) {
-        // Pour l'instant, on simule via création/suppression côté API (fallback en attendant les endpoints move/copy)
         if (item.type === 'file') {
-          // Télécharger contenu puis recréer
-          const content = await fileService.getFileContent(item.path)
-          let newName = item.name
-          
-          // Forcer l'extension .txt pour les fichiers créés dans l'éditeur
-          if (!newName.toLowerCase().endsWith('.txt')) {
-            newName += '.txt'
-          }
-          
-          await fileService.createFile(targetPath, newName, content)
-          if (isCut) {
-            await fileService.deleteFile(item.path)
-          }
+          // Utiliser la nouvelle méthode qui gère correctement les types de fichiers
+          await fileService.moveOrCopyFile(item.path, targetPath, isCut ? 'move' : 'copy')
         } else {
           // Créer un dossier vide (pas de récursif tant que backend move/copy n'existe pas)
           await fileService.createFolder(targetPath, item.name)
@@ -615,14 +604,17 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
           }
         }
       }
+      
       setClipboard(null)
       await loadFiles(currentPath)
       if (currentPath === '/bureau') {
         await refreshDesktopFiles()
       }
+      
+      showSuccess(`${clipboard.files.length} élément(s) collé(s) avec succès`, 'Collage réussi')
     } catch (error) {
       console.error('Erreur lors du collage:', error)
-      showError('Coller a échoué. Déplacement/copie récursive non pris en charge pour le moment.', 'Erreur de collage')
+      showError(`Erreur lors du collage: ${error}`, 'Erreur de collage')
     }
   }
 
@@ -776,9 +768,10 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
         await fileService.createFolder(currentPath, newItemName)
         console.log('Dossier créé avec succès côté backend')
       } else {
-        // Forcer l'extension .txt pour les fichiers créés dans l'explorateur
+        // Préserver l'extension originale ou ajouter .txt par défaut si aucune extension
         let fileName = newItemName
-        if (!fileName.toLowerCase().endsWith('.txt')) {
+        const hasExtension = fileName.includes('.')
+        if (!hasExtension) {
           fileName += '.txt'
         }
         await fileService.createFile(currentPath, fileName, "")
@@ -824,9 +817,10 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
         return
       }
 
-      // Forcer l'extension .txt si elle n'est pas présente
+      // Préserver l'extension originale ou ajouter .txt par défaut si aucune extension
       let finalFileName = fileName.trim()
-      if (!finalFileName.toLowerCase().endsWith('.txt')) {
+      const hasExtension = finalFileName.includes('.')
+      if (!hasExtension) {
         finalFileName += '.txt'
       }
 

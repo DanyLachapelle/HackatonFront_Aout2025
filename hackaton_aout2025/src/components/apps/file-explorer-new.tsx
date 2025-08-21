@@ -373,9 +373,10 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       if (createType === "folder") {
         await fileService.createFolder(currentPath, newItemName)
       } else {
-        // Forcer l'extension .txt pour les fichiers créés dans l'explorateur
+        // Préserver l'extension originale ou ajouter .txt par défaut si aucune extension
         let fileName = newItemName
-        if (!fileName.toLowerCase().endsWith('.txt')) {
+        const hasExtension = fileName.includes('.')
+        if (!hasExtension) {
           fileName += '.txt'
         }
         await fileService.createFile(currentPath, fileName, "")

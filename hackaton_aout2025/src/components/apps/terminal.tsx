@@ -123,7 +123,9 @@ export function Terminal({ initialPath = "/", windowId }: TerminalProps) {
           const fileName = args[0]
           try {
             let finalFileName = fileName
-            if (!finalFileName.toLowerCase().endsWith('.txt')) {
+            // Préserver l'extension originale ou ajouter .txt par défaut si aucune extension
+            const hasExtension = finalFileName.includes('.')
+            if (!hasExtension) {
               finalFileName += '.txt'
             }
             await fileService.createFile(currentPath, finalFileName, "")
@@ -474,9 +476,10 @@ echo "Arguments reçus: \$@"
           } else {
             const fileName = args[0]
             try {
-              // Forcer l'extension .txt si elle n'est pas présente
+              // Préserver l'extension originale ou ajouter .txt par défaut si aucune extension
               let finalFileName = fileName
-              if (!finalFileName.toLowerCase().endsWith('.txt')) {
+              const hasExtension = finalFileName.includes('.')
+              if (!hasExtension) {
                 finalFileName += '.txt'
               }
               await fileService.createFile(currentPath, finalFileName, "")

@@ -184,9 +184,10 @@ export function DesktopContextMenu({ x, y, onClose, onPersonalize, selectedItem,
       const fileName = prompt("Nom du nouveau fichier:")
       if (!fileName || fileName.trim() === "") return
 
-      // Forcer l'extension .txt si elle n'est pas présente
+      // Préserver l'extension originale ou ajouter .txt par défaut si aucune extension
       let finalFileName = fileName.trim()
-      if (!finalFileName.toLowerCase().endsWith('.txt')) {
+      const hasExtension = finalFileName.includes('.')
+      if (!hasExtension) {
         finalFileName += '.txt'
       }
 
