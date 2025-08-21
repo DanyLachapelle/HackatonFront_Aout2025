@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useWindowStore } from "@/stores/window-store"
+import { useDesktopStore } from "@/stores/desktop-store"
 import { 
   FolderIcon, 
   CalculatorIcon, 
@@ -22,6 +23,7 @@ interface StartMenuProps {
 export function StartMenu({ onClose }: StartMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const { openWindow } = useWindowStore()
+  const { setShowWallpaperSelector } = useDesktopStore()
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -151,10 +153,13 @@ export function StartMenu({ onClose }: StartMenuProps) {
         <Button
           variant="ghost"
           className="w-full justify-start"
-          onClick={() => handleOpenApp("settings", "Paramètres", { width: 900, height: 700 })}
+          onClick={() => {
+            setShowWallpaperSelector(true)
+            onClose()
+          }}
         >
           <SettingsIcon className="w-4 h-4 mr-3" />
-          Paramètres
+          Personnaliser le bureau
         </Button>
       </div>
     </Card>

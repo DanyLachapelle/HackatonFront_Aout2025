@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button"
 import { useWindowStore } from "@/stores/window-store"
+import { useDesktopStore } from "@/stores/desktop-store"
 import { FolderIcon, CalculatorIcon, TerminalIcon, SettingsIcon } from "lucide-react"
 
 export function QuickActions() {
   const { openWindow } = useWindowStore()
+  const { setShowWallpaperSelector } = useDesktopStore()
 
   const quickApps = [
     {
@@ -26,21 +28,25 @@ export function QuickActions() {
     },
     {
       icon: SettingsIcon,
-      title: "Paramètres",
+      title: "Personnaliser le bureau",
       type: "settings",
       size: { width: 700, height: 500 },
     },
   ]
 
   const handleQuickLaunch = (app: (typeof quickApps)[0]) => {
-    openWindow({
-      id: `${app.type}-${Date.now()}`,
-      title: app.title,
-      type: app.type as any,
-      position: { x: 100, y: 100 },
-      size: app.size,
-      initialPath: app.type === "file-explorer" ? "/" : undefined,
-    })
+    if (app.type === "settings") {
+      setShowWallpaperSelector(true)
+    } else {
+      openWindow({
+        id: `${app.type}-${Date.now()}`,
+        title: app.title,
+        type: app.type as any,
+        position: { x: 100, y: 100 },
+        size: app.size,
+        initialPath: app.type === "file-explorer" ? "/" : undefined,
+      })
+    }
   }
 
   return (

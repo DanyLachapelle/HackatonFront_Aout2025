@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MinusIcon, SquareIcon, XIcon } from "lucide-react"
@@ -10,15 +10,15 @@ import { cn } from "@/lib/utils"
 import { Calculator } from "@/components/apps/calculator"
 import { Clock } from "@/components/apps/clock"
 import { Calendar } from "@/components/apps/calendar"
-import { Settings } from "@/components/apps/settings"
+
 import { Paint } from "@/components/apps/paint"
 import { MusicPlayer } from "@/components/apps/music-player"
 import { ImageGallery } from "@/components/apps/image-gallery"
 import { TextEditor } from "@/components/apps/text-editor"
 import { FileExplorer } from "@/components/apps/file-explorer"
 import { Terminal } from "@/components/apps/terminal"
+import { FileViewer } from "@/components/file-viewer/file-viewer"
 import { MiniMusicPlayer } from "@/components/apps/mini-music-player"
-import FavoritesApp from "@/components/apps/favoritesApp.tsx";
 
 // Composant pour afficher les fichiers
 function FileViewerWindow({ filePath, windowId }: { filePath?: string; windowId: string }) {
@@ -311,36 +311,39 @@ export function Window({ window }: WindowProps) {
   const renderContent = () => {
     switch (window.type) {
       case "calculator":
-        return <Calculator windowId={window.id} />;
+        return <Calculator windowId={window.id} />
       case "clock":
-        return <Clock windowId={window.id} />;
+        return <Clock windowId={window.id} />
       case "calendar":
-        return <Calendar />;
+        return <Calendar />
       case "settings":
-        return <Settings />;
+        return <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="text-center">
+            <div className="text-4xl mb-4">⚙️</div>
+            <div className="text-lg font-medium">Personnaliser le bureau</div>
+            <div className="text-sm">Utilisez le bouton dans la barre des tâches</div>
+          </div>
+        </div>
       case "paint":
-        return <Paint windowId={window.id} />;
+        return <Paint windowId={window.id} />
       case "music-player":
-        return <MusicPlayer windowId={window.id} />;
+        return <MusicPlayer windowId={window.id} />
       case "image-gallery":
-        return <ImageGallery />;
+        return <ImageGallery />
       case "text-editor":
-        return <TextEditor windowId={window.id} filePath={window.filePath} />;
+        return <TextEditor windowId={window.id} filePath={window.filePath} />
       case "file-explorer":
-        return <FileExplorer initialPath={window.initialPath} />;
+        return <FileExplorer initialPath={window.initialPath} />
       case "file-viewer":
-        return <FileViewerWindow filePath={window.filePath} windowId={window.id} />;
+        return <FileViewerWindow filePath={window.filePath} windowId={window.id} />
       case "mini-music-player":
-        return <MiniMusicPlayer windowId={window.id} filePath={window.filePath} fileName={window.title} />;
+        return <MiniMusicPlayer windowId={window.id} filePath={window.filePath} fileName={window.title} />
       case "terminal":
-        return <Terminal initialPath={window.initialPath} windowId={window.id} />;
-      case "favorites": // cas pour FavoriteApp
-        return <FavoritesApp windowId={window.id} />;
+        return <Terminal initialPath={window.initialPath} windowId={window.id} />
       default:
-        return <TemporaryApp type={window.type} />;
+        return <TemporaryApp type={window.type} />
     }
   }
-
 
   // Empêcher la maximisation pour la calculatrice
   const isCalculator = window.type === "calculator"

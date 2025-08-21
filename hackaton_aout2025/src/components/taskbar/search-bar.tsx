@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SearchIcon, FolderIcon, FileIcon } from "lucide-react"
 import { useWindowStore } from "@/stores/window-store"
+import { useDesktopStore } from "@/stores/desktop-store"
 import { getFileIconEmoji } from "@/lib/file-icons"
 import { useCustomAlert, CustomAlert } from "@/components/ui/custom-alert"
 
@@ -26,6 +27,7 @@ export function SearchBar() {
   const [results, setResults] = useState<SearchResult[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const { openWindow } = useWindowStore()
+  const { setShowWallpaperSelector } = useDesktopStore()
   const { showWarning, alert, hideAlert } = useCustomAlert()
 
   const searchableApps = [
@@ -59,10 +61,10 @@ export function SearchBar() {
     },
     {
       id: "settings",
-      name: "Paramètres",
+      name: "Personnaliser le bureau",
       type: "Application",
       icon: "⚙️",
-      keywords: ["parametre", "config", "settings", "preference"],
+      keywords: ["parametre", "config", "settings", "preference", "personnaliser", "bureau", "fond", "ecran"],
     },
     {
       id: "paint",
@@ -75,7 +77,7 @@ export function SearchBar() {
       id: "image-gallery",
       name: "Galerie d'images",
       type: "Application",
-      icon: "🖼️",
+      icon: "📱",
       keywords: ["image", "photo", "galerie", "gallery"],
     },
     {
@@ -96,7 +98,7 @@ export function SearchBar() {
       id: "music-player",
       name: "Lecteur de musique",
       type: "Application",
-      icon: "🎵",
+      icon: "🎧",
       keywords: ["musique", "music", "audio", "son"],
     },
   ]
@@ -221,31 +223,37 @@ export function SearchBar() {
             type: app.type,
             icon: app.icon,
             action: () => {
-              const appSizes = {
-                calculator: { width: 320, height: 480 },
-                "text-editor": { width: 800, height: 600 },
-                "file-explorer": { width: 800, height: 600 },
-                terminal: { width: 700, height: 500 },
-                settings: { width: 900, height: 700 },
-                paint: { width: 800, height: 600 },
-                "image-gallery": { width: 800, height: 600 },
-                calendar: { width: 800, height: 650 },
-                clock: { width: 600, height: 550 },
-                "music-player": { width: 500, height: 400 },
-              }
+              if (app.id === "settings") {
+                setShowWallpaperSelector(true)
+                setQuery("")
+                setIsOpen(false)
+              } else {
+                const appSizes = {
+                  calculator: { width: 320, height: 480 },
+                  "text-editor": { width: 800, height: 600 },
+                  "file-explorer": { width: 800, height: 600 },
+                  terminal: { width: 700, height: 500 },
+                  settings: { width: 900, height: 700 },
+                  paint: { width: 800, height: 600 },
+                  "image-gallery": { width: 800, height: 600 },
+                  calendar: { width: 800, height: 650 },
+                  clock: { width: 600, height: 550 },
+                  "music-player": { width: 500, height: 400 },
+                }
 
-              openWindow({
-                id: `${app.id}-${Date.now()}`,
-                title: app.name,
-                type: app.id as any,
-                position: { x: 100, y: 100 },
-                size: appSizes[app.id as keyof typeof appSizes] || { width: 600, height: 400 },
-                isMinimized: false,
-                isMaximized: false,
-                zIndex: 1000,
-              })
-              setQuery("")
-              setIsOpen(false)
+                openWindow({
+                  id: `${app.id}-${Date.now()}`,
+                  title: app.name,
+                  type: app.id as any,
+                  position: { x: 100, y: 100 },
+                  size: appSizes[app.id as keyof typeof appSizes] || { width: 600, height: 400 },
+                  isMinimized: false,
+                  isMaximized: false,
+                  zIndex: 1000,
+                })
+                setQuery("")
+                setIsOpen(false)
+              }
             },
           }))
 

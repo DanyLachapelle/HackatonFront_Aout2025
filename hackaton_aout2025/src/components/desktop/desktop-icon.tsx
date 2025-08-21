@@ -150,7 +150,10 @@ export function DesktopIcon({
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={onDoubleClick}
-      onContextMenu={(e) => onContextMenu(e, item)}
+      onContextMenu={(e) => {
+        e.stopPropagation()
+        onContextMenu(e, item)
+      }}
       onClick={(e) => {
         if (!isDragging) {
           onSelectionChange?.(item.id, !isSelected)
