@@ -597,10 +597,13 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
           // Utiliser la nouvelle méthode qui gère correctement les types de fichiers
           await fileService.moveOrCopyFile(item.path, targetPath, isCut ? 'move' : 'copy')
         } else {
-          // Créer un dossier vide (pas de récursif tant que backend move/copy n'existe pas)
-          await fileService.createFolder(targetPath, item.name)
+          // Gérer les dossiers avec leur contenu de manière récursive
           if (isCut) {
-            await fileService.deleteFolder(item.id)
+            // Pour le déplacement, utiliser moveFolderRecursive avec l'ID du dossier
+            await fileService.moveFolderRecursive(item.path, targetPath, item.name, item.id)
+          } else {
+            // Pour la copie, utiliser copyFolderRecursive
+            await fileService.copyFolderRecursive(item.path, targetPath, item.name)
           }
         }
       }

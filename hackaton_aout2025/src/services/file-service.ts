@@ -232,6 +232,9 @@ class FileService {
 
   async createFile(parentPath: string, name: string, content: string): Promise<void> {
     try {
+      console.log(`📝 Création du fichier: ${name} dans ${parentPath}`)
+      console.log(`📄 Contenu à créer (${content.length} caractères): ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`)
+      
       const request: CreateFileRequest = {
         parentPath,
         name,
@@ -247,7 +250,16 @@ class FileService {
         },
         body: JSON.stringify(request)
       })
-      if (!response.ok) throw new Error('Erreur lors de la création du fichier')
+      
+      console.log(`📡 Réponse de création: ${response.status} ${response.statusText}`)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`❌ Erreur lors de la création: ${response.status} ${errorText}`)
+        throw new Error(`Erreur lors de la création du fichier: ${response.status} ${response.statusText}`)
+      }
+      
+      console.log(`✅ Fichier créé avec succès: ${name}`)
     } catch (error) {
       console.error('Erreur lors de la création du fichier:', error)
       throw error
@@ -400,10 +412,20 @@ class FileService {
 
   async getFileContent(path: string): Promise<string> {
     try {
+      console.log(`🔍 Tentative de lecture du contenu du fichier: ${path}`)
       // /api/files/getContentByFile => Récupérer le type d'un fichier par son chemin
       const response = await fetch(`${this.baseUrl}/files/getContentByFile?path=${encodeURIComponent(path)}&userId=${this.userId}`)
-      if (!response.ok) throw new Error('Erreur lors de la lecture du fichier')
-      return await response.text()
+      console.log(`📡 Réponse du serveur: ${response.status} ${response.statusText}`)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`❌ Erreur HTTP ${response.status}: ${errorText}`)
+        throw new Error(`Erreur lors de la lecture du fichier: ${response.status} ${response.statusText}`)
+      }
+      
+      const content = await response.text()
+      console.log(`✅ Contenu lu avec succès, longueur: ${content.length} caractères`)
+      return content
     } catch (error) {
       console.error('Erreur lors de la lecture du fichier:', error)
       throw error
@@ -483,28 +505,112 @@ class FileService {
     }
   }
 
+  // Méthode récursive pour copier un dossier avec tout son contenu
+  async copyFolderRecursive(sourcePath: string, targetParentPath: string, folderName: string): Promise<void> {
+    try {
+      // 1. Créer le dossier de destination
+      const targetPath = `${targetParentPath}/${folderName}`
+      await this.createFolder(targetParentPath, folderName)
+      
+      // 2. Lister le contenu du dossier source
+      const sourceItems = await this.listFiles(sourcePath)
+      
+      // 3. Copier récursivement chaque élément
+      for (const item of sourceItems) {
+        const itemSourcePath = `${sourcePath}/${item.name}`
+        const itemTargetPath = targetPath
+        
+        if (item.type === 'folder') {
+          // Copier récursivement le sous-dossier
+          await this.copyFolderRecursive(itemSourcePath, itemTargetPath, item.name)
+        } else {
+          // Copier le fichier
+          await this.moveOrCopyFile(itemSourcePath, itemTargetPath, 'copy')
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la copie récursive du dossier:', error)
+      throw error
+    }
+  }
+
+  // Méthode récursive pour déplacer un dossier avec tout son contenu
+  async moveFolderRecursive(sourcePath: string, targetParentPath: string, folderName: string, sourceFolderId?: string): Promise<void> {
+    try {
+      // 1. Créer le dossier de destination
+      const targetPath = `${targetParentPath}/${folderName}`
+      await this.createFolder(targetParentPath, folderName)
+      
+      // 2. Lister le contenu du dossier source
+      const sourceItems = await this.listFiles(sourcePath)
+      
+      // 3. Déplacer récursivement chaque élément
+      for (const item of sourceItems) {
+        const itemSourcePath = `${sourcePath}/${item.name}`
+        const itemTargetPath = targetPath
+        
+        if (item.type === 'folder') {
+          // Déplacer récursivement le sous-dossier
+          await this.moveFolderRecursive(itemSourcePath, itemTargetPath, item.name, item.id)
+        } else {
+          // Déplacer le fichier
+          await this.moveOrCopyFile(itemSourcePath, itemTargetPath, 'move')
+        }
+      }
+      
+      // 4. Supprimer le dossier source vide (si on a l'ID)
+      if (sourceFolderId) {
+        await this.deleteFolder(sourceFolderId)
+      }
+    } catch (error) {
+      console.error('Erreur lors du déplacement récursif du dossier:', error)
+      throw error
+    }
+  }
+
   // Récupérer les métadonnées d'un fichier par son chemin
   async getFileInfo(path: string): Promise<FileItem | null> {
     try {
+      console.log(`🔍 getFileInfo appelé pour: ${path}`);
+      
       // 1) Récupérer via le parent: ce endpoint liste le contenu d'un dossier
       const normalizedPath = path.replace(/\\/g, '/').replace(/\/+/, '/');
       const lastSlashIndex = normalizedPath.lastIndexOf('/');
       const parentPath = lastSlashIndex > 0 ? normalizedPath.substring(0, lastSlashIndex) : '/';
       const fileName = normalizedPath.substring(lastSlashIndex + 1);
 
+      console.log(`📁 Parent path: ${parentPath}`);
+      console.log(`📄 File name: ${fileName}`);
+
       const siblings = await this.listFiles(parentPath);
+      console.log(`📄 Siblings trouvés: ${siblings.length}`);
+      siblings.forEach(s => console.log(`  - ${s.name} (${s.path})`));
+      
       const byName = siblings.find(f => f.name === fileName);
-      if (byName) return byName;
+      if (byName) {
+        console.log(`✅ Fichier trouvé par nom: ${byName.name}`);
+        return byName;
+      }
 
       // 2) Fallback: tenter la requête directe et matcher par chemin exact
+      console.log(`🔄 Fallback: recherche par chemin exact`);
       const url = `${this.baseUrl}/files/getFileByPath?path=${encodeURIComponent(parentPath)}&userId=${this.userId}`;
+      console.log(`🌐 URL de fallback: ${url}`);
+      
       const response = await fetch(url);
       if (response.ok) {
         const files: FileDto[] = await response.json();
+        console.log(`📄 Fichiers du fallback: ${files.length}`);
+        files.forEach(f => console.log(`  - ${f.name} (${f.path})`));
+        
         const match = files.find(f => f.path === normalizedPath || f.name === fileName);
-        if (match) return this.fileDtoToFileItem(match);
+        if (match) {
+          console.log(`✅ Fichier trouvé par fallback: ${match.name}`);
+          return this.fileDtoToFileItem(match);
+        }
       }
 
+      console.log(`❌ Fichier non trouvé: ${path}`);
       return null;
     } catch (error) {
       console.error('Erreur lors de la récupération des infos fichier:', error)
@@ -557,6 +663,8 @@ class FileService {
       throw error
     }
   }
+
+
 
 
   async renameFile(id: string, newName: string): Promise<void> {
