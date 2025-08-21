@@ -15,6 +15,7 @@ export interface WindowData {
     | "music-player"
     | "mini-music-player"
     | "settings"
+    | "favorites"
   position: { x: number; y: number }
   size: { width: number; height: number }
   isMinimized: boolean

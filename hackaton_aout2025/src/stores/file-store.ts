@@ -4,10 +4,12 @@ import { fileService } from "@/services/file-service"
 
 interface FileStore {
   files: FileItem[]
+  favoriteFiles: FileItem[]
   loading: boolean
   error: string | null
   loadFiles: (path: string) => Promise<void>
   refreshFiles: () => Promise<void>
+  loadFavoriteFiles: () => Promise<void>
   createFolder: (parentPath: string, name: string) => Promise<void>
   createFile: (parentPath: string, name: string, content: string) => Promise<void>
   getFileContent: (path: string) => Promise<string>
@@ -17,6 +19,7 @@ interface FileStore {
 
 export const useFileStore = create<FileStore>((set, get) => ({
   files: [],
+  favoriteFiles: [],
   loading: false,
   error: null,
 
@@ -33,12 +36,20 @@ export const useFileStore = create<FileStore>((set, get) => ({
   refreshFiles: async () => {
     const { files } = get()
     if (files.length > 0) {
-      // Recharger les fichiers du répertoire actuel
       const currentPath = files[0]?.path?.substring(0, files[0].path.lastIndexOf("/")) || "/"
       await get().loadFiles(currentPath)
     } else {
-      // Si aucun fichier, recharger la racine
       await get().loadFiles("/")
+    }
+  },
+
+  loadFavoriteFiles: async () => {
+    set({ loading: true, error: null })
+    try {
+      const favorites = await fileService.getFavoriteFiles()
+      set({ favoriteFiles: favorites, loading: false })
+    } catch (error) {
+      set({ error: "Erreur lors du chargement des favoris", loading: false })
     }
   },
 
@@ -49,7 +60,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
         path: parentPath,
         userId: 1
       })
-      // Recharger les fichiers du répertoire parent
       await get().loadFiles(parentPath)
     } catch (error) {
       throw new Error("Erreur lors de la création du dossier")
@@ -64,7 +74,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
         content,
         userId: 1
       })
-      // Recharger les fichiers du répertoire parent
       await get().loadFiles(parentPath)
     } catch (error) {
       throw new Error("Erreur lors de la création du fichier")
@@ -90,11 +99,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
   deleteFile: async (path: string) => {
     try {
       await fileService.deleteFile(path)
-      // Recharger les fichiers du répertoire parent
       const parentPath = path.substring(0, path.lastIndexOf("/")) || "/"
       await get().loadFiles(parentPath)
     } catch (error) {
       throw new Error("Erreur lors de la suppression")
     }
   },
-})) 
+}))

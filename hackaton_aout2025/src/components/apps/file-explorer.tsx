@@ -41,6 +41,7 @@ import {
 import JSZip from "jszip"
 import { useWindowStore } from "@/stores/window-store"
 import { useCustomAlert, CustomAlert } from "@/components/ui/custom-alert"
+import {useFileStore} from "@/stores/file-store.ts";
 
 // Utilise le type FileItem importé depuis les types
 
@@ -254,6 +255,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       if (folderName === "musique") return <span className="text-2xl">🎵</span>
       if (folderName === "images") return <span className="text-2xl">🖼️</span>
       if (folderName === "documents") return <span className="text-2xl">📄</span>
+      if(folderName=="favoris") return <span className="text-2xl">⭐</span>
       return <FolderIcon className="w-6 h-6 text-blue-500" />
     }
     
@@ -346,6 +348,8 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
   }
+
+
 
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString("fr-FR", {
@@ -1080,6 +1084,23 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
     }
   }, [filteredAndSortedFiles])
 
+
+  // Fonction pour charger les fichiers favoris
+  const loadFavoriteFiles = async () => {
+    try {
+      const favorites = await fileService.getFavoriteFiles();
+      setFavoriteFiles(favorites);
+    } catch (error) {
+      console.error("Erreur lors du chargement des favoris :", error);
+    }
+  };
+
+  const [favoriteFiles, setFavoriteFiles] = useState<FileItem[]>([]);
+
+
+
+
+
   // Fonction pour obtenir le contenu des fichiers
   const getFileContent = (fileName: string, extension?: string) => {
     switch (extension) {
@@ -1318,6 +1339,8 @@ Vous pouvez toujours :
 
 
 
+
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900">
       {/* Barre d'outils */}
@@ -1536,7 +1559,6 @@ Vous pouvez toujours :
                         <div className="flex items-center space-x-2">
                           {getFileIcon(file)}
                           <span className="truncate">{file.name}</span>
-                          {file.isFavorite && <StarIcon className="w-4 h-4 text-yellow-500"/>}
                         </div>
                       </td>
                       {/*<td className="p-2 text-sm text-gray-600 dark:text-gray-400">*/}
@@ -1577,6 +1599,60 @@ Vous pouvez toujours :
                           >
                             <EyeIcon className="w-3 h-3"/>
                           </Button>
+
+                          {/*<Button*/}
+                          {/*    variant="ghost"*/}
+                          {/*    size="sm"*/}
+                          {/*    onClick={async (e) => {*/}
+                          {/*      e.stopPropagation()*/}
+                          {/*      try {*/}
+                          {/*        await fileService.toggleFileFavorite(file.path)*/}
+                          {/*        // 🔄 ici tu peux aussi rafraîchir ton état local pour refléter le changement*/}
+                          {/*        file.isFavorite = !file.isFavorite*/}
+                          {/*        // ou mieux : via setState / un hook*/}
+                          {/*      } catch (error) {*/}
+                          {/*        console.error(error)*/}
+                          {/*      }*/}
+                          {/*    }}*/}
+                          {/*    title={file.isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}*/}
+                          {/*>*/}
+                          {/*  <StarIcon*/}
+                          {/*      className={`w-3 h-3 ${*/}
+                          {/*          file.isFavorite ? "text-yellow-500 fill-current" : ""*/}
+                          {/*      }`}*/}
+                          {/*  />*/}
+                          {/*</Button>*/}
+                          <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  // Bascule le favori du fichier cliqué
+                                  await fileService.toggleFileFavorite(file.path);
+
+                                  // Récupère tous les favoris mis à jour
+                                  const favorites = await fileService.getFavoriteFiles();
+                                  console.log("Fichiers récupérés :", favorites);
+                                  // Met à jour l'état du composant
+                                  setFavoriteFiles(favorites);
+
+                                  // Mettre à jour le bouton du fichier cliqué
+                                  file.isFavorite = !file.isFavorite;
+                                } catch (error) {
+                                  console.error(error);
+                                }
+                              }}
+                              title={file.isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                          >
+                            <StarIcon
+                                className={`w-3 h-3 ${file.isFavorite ? "text-yellow-500 fill-current" : ""}`}
+                            />
+                          </Button>
+
+
+
+
                         </div>
                       </td>
                     </tr>

@@ -117,6 +117,13 @@ export function Desktop() {
         type: "settings",
         description: "Configuration système",
       },
+      {
+        id: "favorites",
+        name: "Favoris",
+        icon: "⭐",
+        type: "favorites",
+        description: "Accès rapide à vos fichiers favoris",
+      }
     ],
     [],
   )
@@ -214,6 +221,19 @@ export function Desktop() {
         const isImage = ['jpg','jpeg','png','gif','bmp','webp','svg','tiff'].includes(extension)
         const isAudio = ['mp3','wav','flac','aac','ogg','m4a','wma','opus'].includes(extension)
         const isPdf = extension === 'pdf'
+
+        if (item.type === "favorites") {
+          openWindow({
+            id: `favorites-${Date.now()}`,
+            title: "Favoris",
+            type: "favorites",
+            position: { x: 200, y: 200 },
+            size: { width: 600, height: 400 },
+            isMinimized: false,
+            isMaximized: false,
+            zIndex: 1000,
+          });
+        }
 
         if (isImage) {
           openWindow({

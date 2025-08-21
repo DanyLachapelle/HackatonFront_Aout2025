@@ -407,6 +407,18 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     }
   }
 
+  const toggleFavoriteFile = async () => {
+    try {
+      const favorites = await fileService.getFavoriteFiles(); // récupère uniquement les favoris
+      console.log('Fichiers favoris:', favorites);
+      loadFiles(currentPath); // recharge l'affichage si nécessaire
+    } catch (error) {
+      console.error("Erreur lors du chargement des favoris :", error);
+    }
+  };
+
+
+
   // Filtrage et tri des fichiers
   const filteredAndSortedFiles = files
     .filter(file => 

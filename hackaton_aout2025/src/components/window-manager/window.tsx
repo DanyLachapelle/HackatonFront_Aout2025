@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MinusIcon, SquareIcon, XIcon } from "lucide-react"
@@ -17,8 +17,8 @@ import { ImageGallery } from "@/components/apps/image-gallery"
 import { TextEditor } from "@/components/apps/text-editor"
 import { FileExplorer } from "@/components/apps/file-explorer"
 import { Terminal } from "@/components/apps/terminal"
-import { FileViewer } from "@/components/file-viewer/file-viewer"
 import { MiniMusicPlayer } from "@/components/apps/mini-music-player"
+import FavoritesApp from "@/components/apps/favoritesApp.tsx";
 
 // Composant pour afficher les fichiers
 function FileViewerWindow({ filePath, windowId }: { filePath?: string; windowId: string }) {
@@ -311,33 +311,36 @@ export function Window({ window }: WindowProps) {
   const renderContent = () => {
     switch (window.type) {
       case "calculator":
-        return <Calculator windowId={window.id} />
+        return <Calculator windowId={window.id} />;
       case "clock":
-        return <Clock windowId={window.id} />
+        return <Clock windowId={window.id} />;
       case "calendar":
-        return <Calendar />
+        return <Calendar />;
       case "settings":
-        return <Settings />
+        return <Settings />;
       case "paint":
-        return <Paint windowId={window.id} />
+        return <Paint windowId={window.id} />;
       case "music-player":
-        return <MusicPlayer windowId={window.id} />
+        return <MusicPlayer windowId={window.id} />;
       case "image-gallery":
-        return <ImageGallery />
+        return <ImageGallery />;
       case "text-editor":
-        return <TextEditor windowId={window.id} filePath={window.filePath} />
+        return <TextEditor windowId={window.id} filePath={window.filePath} />;
       case "file-explorer":
-        return <FileExplorer initialPath={window.initialPath} />
+        return <FileExplorer initialPath={window.initialPath} />;
       case "file-viewer":
-        return <FileViewerWindow filePath={window.filePath} windowId={window.id} />
+        return <FileViewerWindow filePath={window.filePath} windowId={window.id} />;
       case "mini-music-player":
-        return <MiniMusicPlayer windowId={window.id} filePath={window.filePath} fileName={window.title} />
+        return <MiniMusicPlayer windowId={window.id} filePath={window.filePath} fileName={window.title} />;
       case "terminal":
-        return <Terminal initialPath={window.initialPath} windowId={window.id} />
+        return <Terminal initialPath={window.initialPath} windowId={window.id} />;
+      case "favorites": // cas pour FavoriteApp
+        return <FavoritesApp windowId={window.id} />;
       default:
-        return <TemporaryApp type={window.type} />
+        return <TemporaryApp type={window.type} />;
     }
   }
+
 
   // Empêcher la maximisation pour la calculatrice
   const isCalculator = window.type === "calculator"

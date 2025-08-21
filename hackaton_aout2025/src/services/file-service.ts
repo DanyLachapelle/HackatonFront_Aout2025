@@ -535,10 +535,8 @@ class FileService {
 
   async getFavoriteFiles(): Promise<FileItem[]> {
     try {
-      // const response = await fetch(`${this.baseUrl}/files/files/favorites?userId=${this.userId}`)
-
       // /api/v2/folders/getFavoriteFolders ==> récupérer les fichiers favoris
-      const response = await fetch(`${this.baseUrl}/folders/getFavoriteFolders?userId=${this.userId}`)
+      const response = await fetch(`${this.baseUrl}/files/getFavoriteFiles?userId=${this.userId}`)
       if (!response.ok) throw new Error('Erreur lors du chargement des favoris')
       const files: FileDto[] = await response.json()
       return files.map(file => this.fileDtoToFileItem(file))
@@ -562,15 +560,14 @@ class FileService {
 
   async toggleFileFavorite(path: string): Promise<void> {
     try {
-      // /api/files/SetFavoriteFile ==> mettre fichier en favori
-      const response = await fetch(`${this.baseUrl}/files/SetFavoriteFile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ path, userId: this.userId })
-      })
-      if (!response.ok) throw new Error('Erreur lors du basculement du favori')
+      const url = `${this.baseUrl}/files/SetFavoriteFile?path=${encodeURIComponent(path)}&userId=${this.userId}`
+
+      const response = await fetch(url, { method: 'POST' })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Erreur lors du basculement du favori: ${response.status} - ${errorText}`)
+      }
     } catch (error) {
       console.error('Erreur lors du basculement du favori:', error)
       throw error
@@ -579,13 +576,6 @@ class FileService {
 
   async toggleFolderFavorite(path: string): Promise<void> {
     try {
-      // const response = await fetch(`${this.baseUrl}/files/folders/favorite`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ path, userId: this.userId })
-      // })
       // /api/folders/SetFavoriteFolder ==> mettre dossier en favori
       const response = await fetch(`${this.baseUrl}/folders/SetFavoriteFolder`, {
         method: 'POST',
