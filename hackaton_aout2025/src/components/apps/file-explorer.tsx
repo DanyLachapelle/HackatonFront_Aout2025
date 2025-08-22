@@ -269,7 +269,6 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       if (folderName === "musique") return <span className="text-2xl">🎵</span>
       if (folderName === "images") return <span className="text-2xl">🖼️</span>
       if (folderName === "documents") return <span className="text-2xl">📄</span>
-      if(folderName=="favoris") return <span className="text-2xl">⭐</span>
       return <FolderIcon className="w-6 h-6 text-blue-500" />
     }
     
@@ -1142,17 +1141,8 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
   }, [filteredAndSortedFiles])
 
 
-  // Fonction pour charger les fichiers favoris
-  const loadFavoriteFiles = async () => {
-    try {
-      const favorites = await fileService.getFavoriteFiles();
-      setFavoriteFiles(favorites);
-    } catch (error) {
-      console.error("Erreur lors du chargement des favoris :", error);
-    }
-  };
 
-  const [favoriteFiles, setFavoriteFiles] = useState<FileItem[]>([]);
+
 
 
 
@@ -1696,11 +1686,11 @@ Vous pouvez toujours :
                                   // Bascule le favori du fichier cliqué
                                   await fileService.toggleFileFavorite(file.path);
 
-                                  // Récupère tous les favoris mis à jour
-                                  const favorites = await fileService.getFavoriteFiles();
-                                  console.log("Fichiers récupérés :", favorites);
+                                  // // Récupère tous les favoris mis à jour
+                                  // const favorites = await fileService.getFavoriteFiles();
+                                  // console.log("Fichiers récupérés :", favorites);
                                   // Met à jour l'état du composant
-                                  setFavoriteFiles(favorites);
+                                  //setFavoriteFiles(favorites);
 
                                   // Mettre à jour le bouton du fichier cliqué
                                   file.isFavorite = !file.isFavorite;

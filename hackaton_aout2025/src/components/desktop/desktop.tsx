@@ -124,13 +124,6 @@ export function Desktop() {
         icon: "⚙️",
         type: "settings",
         description: "Personnaliser le fond d'écran et les couleurs",
-      },
-      {
-        id: "favorites",
-        name: "Favoris",
-        icon: "⭐",
-        type: "favorites",
-        description: "Accès rapide à vos fichiers favoris",
       }
     ],
     [],
@@ -236,18 +229,6 @@ export function Desktop() {
         const isAudio = ['mp3','wav','flac','aac','ogg','m4a','wma','opus'].includes(extension)
         const isPdf = extension === 'pdf'
 
-        if (item.type === "favorites") {
-          openWindow({
-            id: `favorites-${Date.now()}`,
-            title: "Favoris",
-            type: "favorites",
-            position: { x: 200, y: 200 },
-            size: { width: 600, height: 400 },
-            isMinimized: false,
-            isMaximized: false,
-            zIndex: 1000,
-          });
-        }
 
         if (isImage) {
           openWindow({

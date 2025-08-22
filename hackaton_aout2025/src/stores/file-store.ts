@@ -9,7 +9,6 @@ interface FileStore {
   error: string | null
   loadFiles: (path: string) => Promise<void>
   refreshFiles: () => Promise<void>
-  loadFavoriteFiles: () => Promise<void>
   createFolder: (parentPath: string, name: string) => Promise<void>
   createFile: (parentPath: string, name: string, content: string) => Promise<void>
   getFileContent: (path: string) => Promise<string>
@@ -43,15 +42,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }
   },
 
-  loadFavoriteFiles: async () => {
-    set({ loading: true, error: null })
-    try {
-      const favorites = await fileService.getFavoriteFiles()
-      set({ favoriteFiles: favorites, loading: false })
-    } catch (error) {
-      set({ error: "Erreur lors du chargement des favoris", loading: false })
-    }
-  },
 
   createFolder: async (parentPath: string, name: string) => {
     try {
