@@ -519,8 +519,8 @@ class FileService {
       const targetPath = `${targetParentPath}/${folderName}`
       await this.createFolder(targetParentPath, folderName)
 
-      // 2. Lister le contenu du dossier source
-      const sourceItems = await this.listFiles(sourcePath)
+      // 2. Lister le contenu du dossier source (fichiers ET dossiers)
+      const sourceItems = await this.listAll(sourcePath)
 
       // 3. Copier récursivement chaque élément
       for (const item of sourceItems) {
@@ -548,8 +548,8 @@ class FileService {
       const targetPath = `${targetParentPath}/${folderName}`
       await this.createFolder(targetParentPath, folderName)
 
-      // 2. Lister le contenu du dossier source
-      const sourceItems = await this.listFiles(sourcePath)
+      // 2. Lister le contenu du dossier source (fichiers ET dossiers)
+      const sourceItems = await this.listAll(sourcePath)
 
       // 3. Déplacer récursivement chaque élément
       for (const item of sourceItems) {
@@ -657,7 +657,7 @@ class FileService {
 
   async downloadFile(path: string): Promise<Blob> {
     try {
-      const response = await fetch(`${this.baseUrl}/files/download?path=${encodeURIComponent(path)}&userId=${this.userId}`)
+      const response = await fetch(`${this.baseUrl}/files/DownloadFile?path=${encodeURIComponent(path)}&userId=${this.userId}`)
       if (!response.ok) throw new Error('Erreur lors du téléchargement')
       return await response.blob()
     } catch (error) {

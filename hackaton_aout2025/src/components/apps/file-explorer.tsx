@@ -674,18 +674,43 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
         
         if (file.type === 'file') {
           try {
-            // Récupérer le contenu réel du fichier depuis le backend
-            const content = await fileService.getFileContent(file.path)
-            
-            // Pour les images et fichiers binaires, on utilise le contenu texte
-            // En production, il faudrait récupérer le vrai contenu binaire
-            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff'].includes(file.extension || '')) {
-              // Créer un contenu simulé pour les images
-              const imageContent = `# Image: ${file.name}\n# Taille: ${formatFileSize(file.size)}\n# Type: ${file.extension}\n# Contenu simulé pour l'image ${file.name}`
-            zip.file(filePath, imageContent)
-          } else {
-              // Pour les fichiers texte, utiliser le contenu réel
+            // Déterminer si c'est un fichier texte ou binaire
+            const isTextFile = file.mimeType?.startsWith('text/') || 
+                              file.extension === 'txt' ||
+                              file.extension === 'md' ||
+                              file.extension === 'json' ||
+                              file.extension === 'xml' ||
+                              file.extension === 'html' ||
+                              file.extension === 'css' ||
+                              file.extension === 'js'
+
+            if (isTextFile) {
+              // Pour les fichiers texte, utiliser getFileContent
+              const content = await fileService.getFileContent(file.path)
               zip.file(filePath, content)
+            } else {
+              // Pour les fichiers binaires (images, PDF, audio, etc.), utiliser downloadFile
+              console.log(`📦 Tentative de téléchargement du fichier binaire: ${file.name} (${file.path})`)
+              console.log(`📦 Type MIME: ${file.mimeType}, Extension: ${file.extension}`)
+              
+              try {
+                const blob = await fileService.downloadFile(file.path)
+                console.log(`✅ Fichier binaire téléchargé avec succès: ${file.name}, taille: ${blob.size} bytes`)
+                zip.file(filePath, blob)
+              } catch (downloadError) {
+                console.error(`❌ Erreur lors du téléchargement de ${file.name}:`, downloadError)
+                // Essayer avec getFileContent comme fallback
+                try {
+                  console.log(`🔄 Tentative de fallback avec getFileContent pour: ${file.name}`)
+                  const content = await fileService.getFileContent(file.path)
+                  zip.file(filePath, content)
+                  console.log(`✅ Fallback réussi pour: ${file.name}`)
+                } catch (fallbackError) {
+                  console.error(`❌ Fallback échoué pour ${file.name}:`, fallbackError)
+                  // Ajouter un fichier d'erreur dans l'archive
+                  zip.file(`${filePath}.error`, `Erreur lors de la récupération du contenu: ${downloadError}\nFallback échoué: ${fallbackError}`)
+                }
+              }
             }
           } catch (error) {
             console.error(`Erreur lors de la récupération du contenu de ${file.name}:`, error)
@@ -696,8 +721,20 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
           // Créer le dossier dans le ZIP
           zip.folder(filePath)
           
-          // Ajouter un fichier .gitkeep pour maintenir la structure du dossier
-          zip.file(`${filePath}/.gitkeep`, '')
+          // Récupérer le contenu du dossier et l'ajouter récursivement
+          try {
+            const folderContent = await fileService.listAll(file.path)
+            if (folderContent.length > 0) {
+              await addToZip(folderContent, filePath)
+            } else {
+              // Si le dossier est vide, ajouter un fichier .gitkeep
+              zip.file(`${filePath}/.gitkeep`, '')
+            }
+          } catch (error) {
+            console.error(`Erreur lors de la récupération du contenu du dossier ${file.name}:`, error)
+            // Ajouter un fichier d'erreur dans l'archive
+            zip.file(`${filePath}/.error`, `Erreur lors de la récupération du contenu du dossier: ${error}`)
+          }
         }
       }
     }
@@ -719,7 +756,7 @@ ${selectedItems.map(item => `- ${item.name} (${item.type === 'file' ? 'fichier' 
 
 ## Note:
 Cette archive a été créée depuis l'explorateur de fichiers de l'application AEMT.
-Les fichiers texte contiennent leur contenu réel, les images sont simulées.
+Les fichiers texte contiennent leur contenu réel, les fichiers binaires (images, PDF, audio, etc.) sont inclus dans leur format original.
 `
 
       zip.file('README.txt', readmeContent)
@@ -1567,8 +1604,8 @@ Vous pouvez toujours :
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onContextMenu={(e) => {
-          // Ne capturer le clic droit que si on clique sur l'espace vide (pas sur un fichier)
-          if (e.target === e.currentTarget) {
+          // Capturer le clic droit sur l'espace vide ou sur la div du dossier vide
+          if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.flex.flex-col.items-center.justify-center.h-64')) {
             handleContextMenu(e)
           }
         }}
@@ -1755,10 +1792,17 @@ Vous pouvez toujours :
         )}
 
         {filteredAndSortedFiles.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+          <div 
+            className="flex flex-col items-center justify-center h-64 text-gray-500 cursor-pointer"
+            onContextMenu={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              handleContextMenu(e)
+            }}
+          >
             <FolderIcon className="w-16 h-16 mb-4" />
             <p className="text-lg font-medium">Dossier vide</p>
-            <p className="text-sm">Ce dossier ne contient aucun fichier</p>
+            <p className="text-sm">Clic droit pour afficher les options</p>
           </div>
         )}
       </div>
