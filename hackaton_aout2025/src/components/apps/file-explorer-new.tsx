@@ -331,30 +331,78 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
 
   const createArchive = async () => {
     if (selectedFiles.length === 0) return
-    
+
     try {
       const zip = new JSZip()
       const selectedItems = files.filter(f => selectedFiles.includes(f.id))
-      
-      const addToZip = (items: FileItem[], basePath: string = '') => {
-        items.forEach(item => {
-          if (item.type === "folder") {
-            // TODO: Ajouter le contenu du dossier récursivement
-            zip.folder(basePath + item.name)
-          } else {
-            // TODO: Ajouter le fichier au zip
-            console.log('Ajouter fichier au zip:', item.path)
+
+      // Fonction pour ajouter récursivement les fichiers et dossiers
+      const addToZip = async (items: FileItem[], basePath: string = '') => {
+        for (const file of items) {
+          const filePath = basePath ? `${basePath}/${file.name}` : file.name
+
+          if (file.type === 'file') {
+            try {
+              // Déterminer si c'est un fichier texte ou binaire
+              const isTextFile = file.mimeType?.startsWith('text/') ||
+                  file.extension === 'txt' ||
+                  file.extension === 'md' ||
+                  file.extension === 'json' ||
+                  file.extension === 'xml' ||
+                  file.extension === 'html' ||
+                  file.extension === 'css' ||
+                  file.extension === 'js'
+
+              if (isTextFile) {
+                // Pour les fichiers texte, utiliser getFileContent
+                const content = await fileService.getFileContent(file.path)
+                zip.file(filePath, content)
+              } else {
+                // Pour les fichiers binaires (images, PDF, audio, etc.), utiliser downloadFile
+                const blob = await fileService.downloadFile(file.path)
+                zip.file(filePath, blob)
+              }
+            } catch (error) {
+              console.error(`Erreur lors de la récupération du contenu de ${file.name}:`, error)
+              // Ajouter un fichier d'erreur dans l'archive
+              zip.file(`${filePath}.error`, `Erreur lors de la récupération du contenu: ${error}`)
+            }
+          } else if (file.type === 'folder') {
+            // Créer le dossier dans le ZIP
+            zip.folder(filePath)
+
+            // Ajouter un fichier .gitkeep pour maintenir la structure du dossier
+            zip.file(`${filePath}/.gitkeep`, '')
           }
-        })
+        }
       }
-      
-      addToZip(selectedItems)
-      
+
+      // Ajouter tous les éléments sélectionnés
+      await addToZip(selectedItems)
+
+      // Ajouter un fichier README avec les informations de l'archive
+      const readmeContent = `# Archive créée le ${new Date().toLocaleDateString('fr-FR')}
+
+## Contenu de l'archive:
+${selectedItems.map(item => `- ${item.name} (${item.type === 'file' ? 'fichier' : 'dossier'})`).join('\n')}
+
+## Informations:
+- Nombre total d'éléments: ${selectedItems.length}
+- Taille totale: ${formatFileSize(selectedItems.reduce((sum, f) => sum + f.size, 0))}
+- Date de création: ${new Date().toISOString()}
+
+## Note:
+Cette archive a été créée depuis l'explorateur de fichiers de l'application AEMT.
+Les fichiers texte contiennent leur contenu réel, les fichiers binaires (images, PDF, audio, etc.) sont inclus dans leur format original.
+`
+
+      zip.file('README.txt', readmeContent)
+
       const content = await zip.generateAsync({ type: "blob" })
       const url = URL.createObjectURL(content)
       const a = document.createElement('a')
       a.href = url
-      a.download = `archive_${new Date().toISOString().split('T')[0]}.zip`
+      a.download = `archive_${new Date().toISOString().slice(0, 10)}_${selectedItems.length}_fichiers.zip`
       a.click()
       URL.revokeObjectURL(url)
     } catch (error) {

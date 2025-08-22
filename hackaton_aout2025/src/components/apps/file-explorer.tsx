@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { fileService } from "@/services/file-service"
 import { useDesktopStore } from "@/stores/desktop-store"
 import type { FileItem } from "@/types/file-types"
-import { 
+import {
   FolderIcon,
   FileIcon,
   FileTextIcon,
@@ -94,7 +94,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     setLoading(true)
     try {
       console.log(`Chargement des fichiers pour le chemin: ${path}`)
-      
+
       // Si on est à la racine, charger uniquement les dossiers système
       if (path === "/") {
         console.log("🔍 Chargement des dossiers système à la racine...")
@@ -102,20 +102,20 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
         console.log("📁 Dossiers récupérés:", folders)
         const files = await fileService.listFiles(path)
         console.log("📄 Fichiers récupérés:", files)
-        
+
         const allItems = [...folders, ...files].map(item => ({
           ...item,
           isSelected: false,
           createdAt: new Date(item.createdAt),
           modifiedAt: new Date(item.modifiedAt)
         }))
-        
+
         console.log(`✅ Dossiers système récupérés:`, allItems)
         setFiles(allItems)
       } else {
         const fileItems = await fileService.listAll(path)
         console.log(`Fichiers récupérés:`, fileItems)
-        
+
         // Ajouter les propriétés manquantes pour la compatibilité
         const enhancedFiles = fileItems.map(file => ({
           ...file,
@@ -196,7 +196,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     const handleGlobalMouseMove = (event: MouseEvent) => {
       if (isDragging) {
         setDragEnd({ x: event.clientX, y: event.clientY })
-        
+
         // Calculer les éléments dans la zone de sélection
         const container = fileExplorerRef.current
         if (container) {
@@ -205,23 +205,23 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
           const endX = Math.max(dragStart.x, event.clientX)
           const startY = Math.min(dragStart.y, event.clientY)
           const endY = Math.max(dragStart.y, event.clientY)
-          
+
           const selectedIds: string[] = []
           const fileElements = container.querySelectorAll('[data-file-id]')
-          
+
           fileElements.forEach((element) => {
             const elementRect = element.getBoundingClientRect()
             const fileId = element.getAttribute('data-file-id')
-            
-            if (fileId && 
-                elementRect.left < endX && 
-                elementRect.right > startX && 
-                elementRect.top < endY && 
+
+            if (fileId &&
+                elementRect.left < endX &&
+                elementRect.right > startX &&
+                elementRect.top < endY &&
                 elementRect.bottom > startY) {
               selectedIds.push(fileId)
             }
           })
-          
+
           setDragSelection(selectedIds)
         }
       }
@@ -231,7 +231,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     const handleGlobalMouseUp = () => {
       if (isDragging) {
         setIsDragging(false)
-        
+
         // Appliquer la sélection par drag
         if (dragSelection.length > 0) {
           setSelectedFiles(prev => {
@@ -240,7 +240,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
             return combined
           })
         }
-        
+
         setDragSelection([])
       }
     }
@@ -271,7 +271,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       if (folderName === "documents") return <span className="text-2xl">📄</span>
       return <FolderIcon className="w-6 h-6 text-blue-500" />
     }
-    
+
     const extension = file.extension?.toLowerCase()
     switch (extension) {
       // Documents texte
@@ -280,7 +280,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       case "rtf":
       case "log":
         return <FileTextIcon className="w-6 h-6 text-gray-600" />
-      
+
       // Images
       case "jpg":
       case "jpeg":
@@ -292,7 +292,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       case "ico":
       case "tiff":
         return <FileImageIcon className="w-6 h-6 text-green-500" />
-      
+
       // Audio/Musique
       case "mp3":
       case "wav":
@@ -303,7 +303,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       case "wma":
       case "opus":
         return <FileAudioIcon className="w-6 h-6 text-pink-500" />
-      
+
       // Vidéo
       case "mp4":
       case "avi":
@@ -314,7 +314,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       case "mkv":
       case "m4v":
         return <FileVideoIcon className="w-6 h-6 text-purple-500" />
-      
+
       // Code
       case "html":
       case "css":
@@ -329,7 +329,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       case "yaml":
       case "yml":
         return <FileCodeIcon className="w-6 h-6 text-blue-600" />
-      
+
       // Documents Office
       case "pdf":
       case "doc":
@@ -339,7 +339,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       case "xls":
       case "xlsx":
         return <FileTextIcon className="w-6 h-6 text-red-500" />
-      
+
       // Archives
       case "zip":
       case "rar":
@@ -348,7 +348,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       case "gz":
       case "bz2":
         return <FileArchiveIcon className="w-6 h-6 text-orange-500" />
-      
+
       default:
         return <FileIcon className="w-6 h-6 text-gray-500" />
     }
@@ -394,21 +394,21 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   const getBreadcrumbItems = () => {
     const parts = currentPath.split("/").filter(Boolean)
     const items = [{ name: "Accueil", path: "/" }]
-    
+
     let currentPathBuilder = ""
     parts.forEach(part => {
       currentPathBuilder += "/" + part
       items.push({ name: part, path: currentPathBuilder })
     })
-    
+
     return items
   }
 
   const handleFileClick = (file: FileItem, event: React.MouseEvent) => {
     if (event.ctrlKey || event.metaKey) {
       // Sélection multiple
-      setSelectedFiles(prev => 
-        prev.includes(file.id) 
+      setSelectedFiles(prev =>
+        prev.includes(file.id)
           ? prev.filter(id => id !== file.id)
           : [...prev, file.id]
       )
@@ -440,7 +440,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   const handleMouseMove = (event: React.MouseEvent) => {
     if (isDragging) {
       setDragEnd({ x: event.clientX, y: event.clientY })
-      
+
       // Calculer les éléments dans la zone de sélection
       const container = fileExplorerRef.current
       if (container) {
@@ -449,23 +449,23 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
         const endX = Math.max(dragStart.x, event.clientX)
         const startY = Math.min(dragStart.y, event.clientY)
         const endY = Math.max(dragStart.y, event.clientY)
-        
+
         const selectedIds: string[] = []
         const fileElements = container.querySelectorAll('[data-file-id]')
-        
+
         fileElements.forEach((element) => {
           const elementRect = element.getBoundingClientRect()
           const fileId = element.getAttribute('data-file-id')
-          
-          if (fileId && 
-              elementRect.left < endX && 
-              elementRect.right > startX && 
-              elementRect.top < endY && 
+
+          if (fileId &&
+              elementRect.left < endX &&
+              elementRect.right > startX &&
+              elementRect.top < endY &&
               elementRect.bottom > startY) {
             selectedIds.push(fileId)
           }
         })
-        
+
         setDragSelection(selectedIds)
       }
     }
@@ -474,7 +474,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false)
-      
+
       // Appliquer la sélection par drag
       if (dragSelection.length > 0) {
         setSelectedFiles(prev => {
@@ -483,7 +483,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
           return combined
         })
       }
-      
+
       setDragSelection([])
     }
   }
@@ -619,7 +619,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
 
   const deleteSelected = async () => {
     if (selectedFiles.length === 0) return
-    
+
     // Récupérer les éléments sélectionnés
     const selectedItems = files.filter(f => selectedFiles.includes(f.id))
     setDeleteTarget(selectedItems)
@@ -638,17 +638,17 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
           console.log(`Fichier "${item.name}" supprimé avec succès`)
         }
       }
-      
+
       // Supprimer visuellement de l'interface
       setFiles(prev => prev.filter(f => !deleteTarget.map(item => item.id).includes(f.id)))
       setSelectedFiles([])
-      
+
       // Si on est dans le dossier Bureau, rafraîchir le bureau
       if (currentPath === '/bureau') {
         console.log('🖥️ Rafraîchissement du bureau après suppression...')
         await refreshDesktopFiles()
       }
-      
+
       console.log(`${deleteTarget.length} élément(s) supprimé(s) avec succès`)
       showSuccess(`${deleteTarget.length} élément(s) supprimé(s) avec succès`, 'Suppression réussie')
     } catch (error) {
@@ -660,33 +660,41 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     }
   }
 
+
   const createArchive = async () => {
     if (selectedFiles.length === 0) return
-    
+
     const selectedItems = files.filter(f => selectedFiles.includes(f.id))
-    
+
     const zip = new JSZip()
 
     // Fonction pour ajouter récursivement les fichiers et dossiers
     const addToZip = async (items: FileItem[], basePath: string = '') => {
       for (const file of items) {
         const filePath = basePath ? `${basePath}/${file.name}` : file.name
-        
+
         if (file.type === 'file') {
           try {
-            // Récupérer le contenu réel du fichier depuis le backend
-            const content = await fileService.getFileContent(file.path)
-            
-            // Pour les images et fichiers binaires, on utilise le contenu texte
-            // En production, il faudrait récupérer le vrai contenu binaire
-            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff'].includes(file.extension || '')) {
-              // Créer un contenu simulé pour les images
-              const imageContent = `# Image: ${file.name}\n# Taille: ${formatFileSize(file.size)}\n# Type: ${file.extension}\n# Contenu simulé pour l'image ${file.name}`
-            zip.file(filePath, imageContent)
-          } else {
-              // Pour les fichiers texte, utiliser le contenu réel
+            // Déterminer si c'est un fichier texte ou binaire
+            const isTextFile = file.mimeType?.startsWith('text/') ||
+                file.extension === 'txt' ||
+                file.extension === 'md' ||
+                file.extension === 'json' ||
+                file.extension === 'xml' ||
+                file.extension === 'html' ||
+                file.extension === 'css' ||
+                file.extension === 'js'
+
+            if (isTextFile) {
+              const content = await fileService.getFileContent(file.path)
               zip.file(filePath, content)
+            } else {
+              const blob = await fileService.downloadFile(file.path)
+              const arrayBuffer = await blob.arrayBuffer()
+              zip.file(filePath, arrayBuffer, { binary: true })
             }
+
+
           } catch (error) {
             console.error(`Erreur lors de la récupération du contenu de ${file.name}:`, error)
             // Ajouter un fichier d'erreur dans l'archive
@@ -695,7 +703,7 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
         } else if (file.type === 'folder') {
           // Créer le dossier dans le ZIP
           zip.folder(filePath)
-          
+
           // Ajouter un fichier .gitkeep pour maintenir la structure du dossier
           zip.file(`${filePath}/.gitkeep`, '')
         }
@@ -703,11 +711,11 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
     }
 
     try {
-    // Ajouter tous les éléments sélectionnés
+      // Ajouter tous les éléments sélectionnés
       await addToZip(selectedItems)
 
-    // Ajouter un fichier README avec les informations de l'archive
-    const readmeContent = `# Archive créée le ${new Date().toLocaleDateString('fr-FR')}
+      // Ajouter un fichier README avec les informations de l'archive
+      const readmeContent = `# Archive créée le ${new Date().toLocaleDateString('fr-FR')}
 
 ## Contenu de l'archive:
 ${selectedItems.map(item => `- ${item.name} (${item.type === 'file' ? 'fichier' : 'dossier'})`).join('\n')}
@@ -719,29 +727,30 @@ ${selectedItems.map(item => `- ${item.name} (${item.type === 'file' ? 'fichier' 
 
 ## Note:
 Cette archive a été créée depuis l'explorateur de fichiers de l'application AEMT.
-Les fichiers texte contiennent leur contenu réel, les images sont simulées.
+Les fichiers texte contiennent leur contenu réel, les fichiers binaires (images, PDF, audio, etc.) sont inclus dans leur format original.
 `
 
       zip.file('README.txt', readmeContent)
 
       // Générer l'archive
       const content = await zip.generateAsync({ type: "blob" })
-        const blob = new Blob([content], { type: "application/zip" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
+      const blob = new Blob([content], { type: "application/zip" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
       a.download = `archive_${new Date().toISOString().slice(0, 10)}_${selectedItems.length}_fichiers.zip`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
 
       showSuccess(`✅ Archive ZIP créée avec succès !`, `Nom: ${a.download}\nFichiers: ${selectedItems.length}\nTaille: ${formatFileSize(selectedItems.reduce((sum, f) => sum + f.size, 0))}\nL'archive contient maintenant les vrais fichiers que vous pouvez ouvrir !`)
     } catch (error) {
-        console.error("Erreur lors de la création de l'archive:", error)
+      console.error("Erreur lors de la création de l'archive:", error)
       showError("❌ Erreur lors de la création de l'archive.", 'Erreur d\'archive')
     }
   }
+
 
   const refreshCurrentFolder = () => {
     // Recharger les fichiers du dossier actuel
@@ -751,7 +760,7 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
 
   const createNewItem = async () => {
     if (!newItemName.trim()) return
-    
+
     // Empêcher la création à la racine
     if (currentPath === "/") {
       showError("Impossible de créer des fichiers ou dossiers à la racine.", "Utilisez les dossiers système existants.")
@@ -759,10 +768,10 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
       setShowCreateDialog(false)
       return
     }
-    
+
     try {
       console.log(`Création d'un ${createType} nommé "${newItemName}" dans le chemin "${currentPath}"`)
-      
+
       if (createType === "folder") {
         await fileService.createFolder(currentPath, newItemName)
         console.log('Dossier créé avec succès côté backend')
@@ -775,15 +784,15 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
         await fileService.createFile(currentPath, fileName, "")
         console.log('Fichier créé avec succès côté backend')
       }
-      
+
       // Attendre un peu pour s'assurer que le backend a terminé
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // Recharger les fichiers pour afficher le nouvel élément
       console.log('Rechargement des fichiers...')
       await loadFiles(currentPath)
       console.log('Fichiers rechargés avec succès')
-      
+
       // Si on est dans le dossier Bureau, rafraîchir le bureau
       if (currentPath === '/bureau') {
         console.log('🖥️ Rafraîchissement du bureau après création...')
@@ -794,7 +803,7 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
           console.error('Erreur lors du rafraîchissement du bureau:', error)
         }
       }
-      
+
       setNewItemName("")
       setShowCreateDialog(false)
     } catch (error) {
@@ -822,15 +831,15 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
       }
 
       await fileService.createFile(currentPath, finalFileName, "")
-      
+
       // Recharger les fichiers
       await loadFiles(currentPath)
-      
+
       // Si on est dans le dossier Bureau, rafraîchir le bureau
       if (currentPath === '/bureau') {
         await refreshDesktopFiles()
       }
-      
+
       setShowContextMenu(false)
     } catch (error) {
       console.error('Erreur lors de la création du fichier:', error)
@@ -850,15 +859,15 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
       }
 
       await fileService.createFolder(currentPath, folderName.trim())
-      
+
       // Recharger les fichiers
       await loadFiles(currentPath)
-      
+
       // Si on est dans le dossier Bureau, rafraîchir le bureau
       if (currentPath === '/bureau') {
         await refreshDesktopFiles()
       }
-      
+
       setShowContextMenu(false)
     } catch (error) {
       console.error('Erreur lors de la création du dossier:', error)
@@ -879,17 +888,17 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
       input.type = 'file'
       input.multiple = true
       input.style.display = 'none'
-      
+
       // Ajouter l'input au DOM
       document.body.appendChild(input)
-      
+
       // Écouter les changements
       input.onchange = async (event) => {
         const files = (event.target as HTMLInputElement).files
         if (files && files.length > 0) {
           try {
             console.log(`📤 Upload de ${files.length} fichier(s) vers ${currentPath}`)
-            
+
             // Upload chaque fichier vers le dossier courant
             for (let i = 0; i < files.length; i++) {
               const file = files[i]
@@ -899,20 +908,20 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
                 size: file.size,
                 lastModified: new Date(file.lastModified)
               })
-              
+
               // Corriger le contentType si nécessaire pour les images
               const correctedFile = correctFileContentType(file)
-              
+
               try {
                 await fileService.uploadFile(currentPath, correctedFile)
                 console.log(`✅ Fichier "${file.name}" uploadé avec succès`)
               } catch (uploadError) {
                 console.error(`❌ Erreur lors de l'upload de "${file.name}":`, uploadError)
-                
+
                 // Afficher un message d'erreur spécifique
                 let errorMessage = `Erreur lors de l'upload de "${file.name}"`
                 let errorTitle = "Erreur d'upload"
-                
+
                 if (uploadError instanceof Error) {
                   if (uploadError.message.includes("Type de fichier non autorisé")) {
                     errorTitle = "Type de fichier non autorisé"
@@ -930,34 +939,34 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
                     errorMessage = uploadError.message
                   }
                 }
-                
+
                 showError(errorTitle, errorMessage)
               }
             }
-            
+
             // Recharger les fichiers
             console.log('🔄 Rechargement des fichiers...')
             await loadFiles(currentPath)
-            
+
             // Si on est dans le dossier Bureau, rafraîchir le bureau
             if (currentPath === '/bureau') {
               await refreshDesktopFiles()
             }
-            
+
             console.log(`✅ Upload terminé - ${files.length} fichier(s) traités`)
           } catch (error) {
             console.error("❌ Erreur générale lors de l'upload:", error)
             showError("Erreur générale", "Une erreur inattendue s'est produite lors de l'ajout des fichiers.")
           }
         }
-        
+
         // Nettoyer l'input
         document.body.removeChild(input)
       }
-      
+
       // Déclencher la sélection de fichiers
       input.click()
-      
+
       setShowContextMenu(false)
     } catch (error) {
       console.error("❌ Erreur lors de l'ajout de fichiers:", error)
@@ -968,30 +977,30 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
   // Fonction pour corriger le contentType des fichiers si nécessaire
   const correctFileContentType = (file: File): File => {
     const extension = file.name.split('.').pop()?.toLowerCase()
-    
+
     // Si le contentType est vide ou incorrect, le corriger
     if (!file.type || file.type === 'application/octet-stream') {
       const correctedType = getContentTypeFromExtension(extension)
       if (correctedType) {
         console.log(`🔧 Correction du contentType pour ${file.name}: "${file.type}" → "${correctedType}"`)
-        
+
         // Créer un nouveau fichier avec le bon contentType
         const correctedFile = new File([file], file.name, {
           type: correctedType,
           lastModified: file.lastModified
         })
-        
+
         return correctedFile
       }
     }
-    
+
     return file
   }
 
   // Fonction pour obtenir le contentType à partir de l'extension
   const getContentTypeFromExtension = (extension?: string): string | null => {
     if (!extension) return null
-    
+
     const contentTypeMap: { [key: string]: string } = {
       'png': 'image/png',
       'jpg': 'image/jpeg',
@@ -1014,7 +1023,7 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
       'aac': 'audio/aac',
       'ogg': 'audio/ogg'
     }
-    
+
     return contentTypeMap[extension] || null
   }
 
@@ -1060,15 +1069,15 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
       } else {
         await fileService.renameFile(file.id, newName.trim())
       }
-      
+
       // Recharger les fichiers
       await loadFiles(currentPath)
-      
+
       // Si on est dans le dossier Bureau, rafraîchir le bureau
       if (currentPath === '/bureau') {
         await refreshDesktopFiles()
       }
-      
+
       showSuccess(`"${file.name}" renommé en "${newName.trim()}"`, "Renommage réussi")
     } catch (error) {
       console.error('Erreur lors du renommage:', error)
@@ -1077,7 +1086,7 @@ Les fichiers texte contiennent leur contenu réel, les images sont simulées.
   }
 
   const filteredAndSortedFiles = files
-    .filter(file => 
+    .filter(file =>
       file.name.toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => {
@@ -1157,7 +1166,7 @@ Fonctionnalités disponibles :
 - Retour à la ligne automatique
 
 Vous pouvez modifier ces paramètres dans la barre d'outils du visionneur.`
-      
+
       case 'json':
         return `{
   "name": "${fileName}",
@@ -1184,7 +1193,7 @@ Vous pouvez modifier ces paramètres dans la barre d'outils du visionneur.`
     "author": "Système de fichiers"
   }
 }`
-      
+
       case 'js':
         return `// ${fileName}
 // Exemple de code JavaScript
@@ -1220,7 +1229,7 @@ manager.addFile('document.txt');
 manager.addFile('image.jpg');
 
 console.log('Nombre de fichiers:', manager.getFileCount());`
-      
+
       case 'html':
         return `<!DOCTYPE html>
 <html lang="fr">
@@ -1278,7 +1287,7 @@ console.log('Nombre de fichiers:', manager.getFileCount());`
     </div>
 </body>
 </html>`
-      
+
       case 'css':
         return `/* ${fileName} */
 /* Styles pour le visionneur de fichiers */
@@ -1361,7 +1370,7 @@ console.log('Nombre de fichiers:', manager.getFileCount());`
   display: flex;
   justify-content: space-between;
 }`
-      
+
       default:
         return `Contenu du fichier ${fileName}
 
@@ -1465,7 +1474,7 @@ Vous pouvez toujours :
                 title="Rechercher des fichiers par nom"
               />
             </div>
-            
+
             <select
               value={`${sortBy}-${sortOrder}`}
               onChange={(e) => {
@@ -1560,7 +1569,7 @@ Vous pouvez toujours :
       </div>
 
       {/* Zone principale */}
-      <div 
+      <div
         className="flex-1 overflow-auto relative"
         ref={fileExplorerRef}
         onMouseDown={handleMouseDown}
@@ -1893,9 +1902,9 @@ Vous pouvez toujours :
                    </div>
                    <span className="text-xs">▶</span>
                  </button>
-                 
+
                  {showViewSubmenu && (
-                   <div 
+                   <div
                      className="absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-40"
                      onMouseEnter={() => setShowViewSubmenu(true)}
                      onMouseLeave={() => setShowViewSubmenu(false)}
@@ -1941,9 +1950,9 @@ Vous pouvez toujours :
                    </div>
                    <span className="text-xs">▶</span>
                  </button>
-                 
+
                  {showNewSubmenu && (
-                   <div 
+                   <div
                      className="absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-40"
                      onMouseEnter={() => setShowNewSubmenu(true)}
                      onMouseLeave={() => setShowNewSubmenu(false)}
@@ -2071,12 +2080,12 @@ Vous pouvez toujours :
                   </p>
                 </div>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Taille:</span>
                   <span className="text-sm">
-                    {detailsItem.type === "folder" 
+                    {detailsItem.type === "folder"
                       ? `${folderCounts[detailsItem.id] ?? "..."} éléments`
                       : formatFileSize(detailsItem.size)
                     }
@@ -2095,7 +2104,7 @@ Vous pouvez toujours :
                   <span className="text-sm font-mono text-xs">{detailsItem.path}</span>
                 </div>
               </div>
-              
+
               <div className="flex justify-end mt-6">
                 <Button onClick={() => setShowDetails(false)}>
                   Fermer
@@ -2134,12 +2143,12 @@ Vous pouvez toujours :
                    </p>
                  </div>
                </div>
-               
+
                <div className="mb-4">
                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
                    Êtes-vous sûr de vouloir supprimer {deleteTarget.length} élément(s) ?
                  </p>
-                 
+
                  {deleteTarget.length <= 5 && (
                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 max-h-32 overflow-y-auto">
                      {deleteTarget.map((item, index) => (
@@ -2153,7 +2162,7 @@ Vous pouvez toujours :
                      ))}
                    </div>
                  )}
-                 
+
                  {deleteTarget.length > 5 && (
                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
                      <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -2166,7 +2175,7 @@ Vous pouvez toujours :
                    </div>
                  )}
                </div>
-               
+
                <div className="flex justify-end space-x-2">
                  <Button
                    variant="outline"
@@ -2177,7 +2186,7 @@ Vous pouvez toujours :
                  >
                    Annuler
                  </Button>
-                 <Button 
+                 <Button
                    variant="destructive"
                    onClick={confirmDelete}
                    className="bg-red-600 hover:bg-red-700 text-white"
@@ -2200,4 +2209,4 @@ Vous pouvez toujours :
        />
      </div>
    )
- } 
+ }
