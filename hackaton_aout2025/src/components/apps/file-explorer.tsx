@@ -701,14 +701,27 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
             zip.file(`${filePath}.error`, `Erreur lors de la récupération du contenu: ${error}`)
           }
         } else if (file.type === 'folder') {
-          // Créer le dossier dans le ZIP
-          zip.folder(filePath)
+        // Créer le dossier dans le ZIP
+        zip.folder(filePath)
 
-          // Ajouter un fichier .gitkeep pour maintenir la structure du dossier
-          zip.file(`${filePath}/.gitkeep`, '')
+        // Récupérer le contenu du dossier et l'ajouter récursivement
+        try {
+          const folderContent = await fileService.listAll(file.path)
+          if (folderContent.length > 0) {
+            await addToZip(folderContent, filePath)
+          } else {
+            // Si le dossier est vide, ajouter un fichier .gitkeep
+            zip.file(`${filePath}/.gitkeep`, '')
+          }
+        } catch (error) {
+          console.error(`Erreur lors de la récupération du contenu du dossier ${file.name}:`, error)
+          // Ajouter un fichier d'erreur dans l'archive
+          zip.file(`${filePath}/.error`, `Erreur lors de la récupération du contenu du dossier: ${error}`)
         }
       }
     }
+  }
+
 
     try {
       // Ajouter tous les éléments sélectionnés
@@ -1577,7 +1590,7 @@ Vous pouvez toujours :
         onMouseUp={handleMouseUp}
         onContextMenu={(e) => {
           // Ne capturer le clic droit que si on clique sur l'espace vide (pas sur un fichier)
-          if (e.target === e.currentTarget) {
+          if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.flex.flex-col.items-center.justify-center.h-64')) {
             handleContextMenu(e)
           }
         }}
