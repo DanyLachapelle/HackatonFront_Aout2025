@@ -425,18 +425,153 @@ class FileService {
 
   // Fallback move/copy tant que le backend n'expose pas d'endpoint dédié
   async moveOrCopyFile(sourcePath: string, targetDir: string, action: 'copy' | 'move'): Promise<void> {
-    // Télécharger contenu puis recréer (texte uniquement pour l'instant)
-    const content = await this.getFileContent(sourcePath)
-    let name = sourcePath.split('/').pop() || 'fichier'
-    
-    // Forcer l'extension .txt pour les fichiers texte
-    if (!name.toLowerCase().endsWith('.txt')) {
-      name += '.txt'
+    try {
+      // Récupérer les informations du fichier source
+      const fileInfo = await this.getFileInfo(sourcePath)
+      if (!fileInfo) {
+        throw new Error("Fichier source non trouvé: ${sourcePath}")
+      }
+
+      const fileName = fileInfo.name
+      const isTextFile = fileInfo.mimeType?.startsWith('text/') ||
+      fileName.toLowerCase().endsWith('.txt') ||
+      fileName.toLowerCase().endsWith('.md') ||
+      fileName.toLowerCase().endsWith('.json') ||
+      fileName.toLowerCase().endsWith('.xml') ||
+      fileName.toLowerCase().endsWith('.html') ||
+      fileName.toLowerCase().endsWith('.css') ||
+      fileName.toLowerCase().endsWith('.js')
+
+      if (isTextFile) {
+        // Pour les fichiers texte, utiliser getFileContent
+        const content = await this.getFileContent(sourcePath)
+        await this.createFile(targetDir, fileName, content)
+      } else {
+        // Pour les fichiers binaires, télécharger et recréer
+        await this.downloadAndRecreateFile(sourcePath, targetDir, fileName)
+      }
+
+      if (action === 'move') {
+        await this.deleteFile(sourcePath)
+      }
+    } catch (error) {
+      console.error('Erreur lors du déplacement/copie:', error)
+      throw error
     }
-    
-    await this.createFile(targetDir, name, content)
-    if (action === 'move') {
-      await this.deleteFile(sourcePath)
+  }
+
+  // Récupérer les métadonnées d'un fichier par son chemin
+  async getFileInfo(path: string): Promise<FileItem | null> {
+    try {
+      // 1) Récupérer via le parent: ce endpoint liste le contenu d'un dossier
+      const normalizedPath = path.replace(/\\/g, '/').replace(/\/+/, '/');
+      const lastSlashIndex = normalizedPath.lastIndexOf('/');
+      const parentPath = lastSlashIndex > 0 ? normalizedPath.substring(0, lastSlashIndex) : '/';
+      const fileName = normalizedPath.substring(lastSlashIndex + 1);
+
+      const siblings = await this.listFiles(parentPath);
+      const byName = siblings.find(f => f.name === fileName);
+      if (byName) return byName;
+
+      // 2) Fallback: tenter la requête directe et matcher par chemin exact
+      const url = `${this.baseUrl}/files/getFileByPath?path=${encodeURIComponent(parentPath)}&userId=${this.userId}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const files: FileDto[] = await response.json();
+        const match = files.find(f => f.path === normalizedPath || f.name === fileName);
+        if (match) return this.fileDtoToFileItem(match);
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des infos fichier:', error)
+      return null
+    }
+  }
+
+
+  // Nouvelle méthode pour télécharger et recréer un fichier binaire
+  async downloadAndRecreateFile(sourcePath: string, targetDir: string, fileName: string): Promise<void> {
+    try {
+      // Télécharger le fichier binaire
+      const response = await fetch(`${this.baseUrl}/files/DownloadFile?path=${encodeURIComponent(sourcePath)}&userId=${this.userId}`)
+      if (!response.ok) {
+        throw new Error(`Erreur lors du téléchargement: ${response.status} ${response.statusText}`)
+      }
+
+      // Récupérer le blob du fichier
+      const blob = await response.blob()
+
+      // Créer un objet File à partir du blob
+      const file = new File([blob], fileName, { type: blob.type })
+
+      // Uploader le fichier dans le dossier de destination
+      await this.uploadFile(targetDir, file)
+    } catch (error) {
+      console.error('Erreur lors du téléchargement et recréation:', error)
+      throw error
+    }
+  }
+  // Méthode récursive pour copier un dossier avec tout son contenu
+  async copyFolderRecursive(sourcePath: string, targetParentPath: string, folderName: string): Promise<void> {
+    try {
+      // 1. Créer le dossier de destination
+      const targetPath = `${targetParentPath}/${folderName}`
+      await this.createFolder(targetParentPath, folderName)
+
+      // 2. Lister le contenu du dossier source
+      const sourceItems = await this.listFiles(sourcePath)
+
+      // 3. Copier récursivement chaque élément
+      for (const item of sourceItems) {
+        const itemSourcePath = `${sourcePath}/${item.name}`
+        const itemTargetPath = targetPath
+
+        if (item.type === 'folder') {
+          // Copier récursivement le sous-dossier
+          await this.copyFolderRecursive(itemSourcePath, itemTargetPath, item.name)
+        } else {
+          // Copier le fichier
+          await this.moveOrCopyFile(itemSourcePath, itemTargetPath, 'copy')
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la copie récursive du dossier:', error)
+      throw error
+    }
+  }
+
+  // Méthode récursive pour déplacer un dossier avec tout son contenu
+  async moveFolderRecursive(sourcePath: string, targetParentPath: string, folderName: string, sourceFolderId?: string): Promise<void> {
+    try {
+      // 1. Créer le dossier de destination
+      const targetPath = `${targetParentPath}/${folderName}`
+      await this.createFolder(targetParentPath, folderName)
+
+      // 2. Lister le contenu du dossier source
+      const sourceItems = await this.listFiles(sourcePath)
+
+      // 3. Déplacer récursivement chaque élément
+      for (const item of sourceItems) {
+        const itemSourcePath = `${sourcePath}/${item.name}`
+        const itemTargetPath = targetPath
+
+        if (item.type === 'folder') {
+          // Déplacer récursivement le sous-dossier
+          await this.moveFolderRecursive(itemSourcePath, itemTargetPath, item.name, item.id)
+        } else {
+          // Déplacer le fichier
+          await this.moveOrCopyFile(itemSourcePath, itemTargetPath, 'move')
+        }
+      }
+
+      // 4. Supprimer le dossier source vide (si on a l'ID)
+      if (sourceFolderId) {
+        await this.deleteFolder(sourceFolderId)
+      }
+    } catch (error) {
+      console.error('Erreur lors du déplacement récursif du dossier:', error)
+      throw error
     }
   }
 

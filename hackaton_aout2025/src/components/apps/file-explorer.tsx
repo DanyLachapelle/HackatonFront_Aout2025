@@ -590,27 +590,19 @@ export function FileExplorer({ initialPath = "/" }: FileExplorerProps) {
       // Coller dans le dossier courant
       const targetPath = currentPath
       const isCut = clipboard.action === 'cut'
+
       for (const item of clipboard.files) {
-        // Pour l'instant, on simule via création/suppression côté API (fallback en attendant les endpoints move/copy)
         if (item.type === 'file') {
-          // Télécharger contenu puis recréer
-          const content = await fileService.getFileContent(item.path)
-          let newName = item.name
-          
-          // Forcer l'extension .txt pour les fichiers créés dans l'éditeur
-          if (!newName.toLowerCase().endsWith('.txt')) {
-            newName += '.txt'
-          }
-          
-          await fileService.createFile(targetPath, newName, content)
-          if (isCut) {
-            await fileService.deleteFile(item.path)
-          }
+          // Utiliser la nouvelle méthode qui gère correctement les types de fichiers
+          await fileService.moveOrCopyFile(item.path, targetPath, isCut ? 'move' : 'copy')
         } else {
-          // Créer un dossier vide (pas de récursif tant que backend move/copy n'existe pas)
-          await fileService.createFolder(targetPath, item.name)
+          // Gérer les dossiers avec leur contenu de manière récursive
           if (isCut) {
-            await fileService.deleteFolder(item.id)
+            // Pour le déplacement, utiliser moveFolderRecursive avec l'ID du dossier
+            await fileService.moveFolderRecursive(item.path, targetPath, item.name, item.id)
+          } else {
+            // Pour la copie, utiliser copyFolderRecursive
+            await fileService.copyFolderRecursive(item.path, targetPath, item.name)
           }
         }
       }
