@@ -514,12 +514,15 @@ class FileService {
   }
 
   // Méthode pour récupérer un fichier binaire (Blob)
-  async downloadFile(sourcePath: string): Promise<Blob> {
-    const response = await fetch(`${this.baseUrl}/files/DownloadFile?path=${encodeURIComponent(sourcePath)}&userId=${this.userId}`)
-    if (!response.ok) {
-      throw new Error(`Erreur lors du téléchargement: ${response.status} ${response.statusText}`)
+  async downloadFile(path: string): Promise<Blob> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/DownloadFile?path=${encodeURIComponent(path)}&userId=${this.userId}`)
+      if (!response.ok) throw new Error('Erreur lors du téléchargement')
+      return await response.blob()
+    } catch (error) {
+      console.error('Erreur lors du téléchargement:', error)
+      throw error
     }
-    return await response.blob()
   }
   // Méthode récursive pour copier un dossier avec tout son contenu
   async copyFolderRecursive(sourcePath: string, targetParentPath: string, folderName: string): Promise<void> {
@@ -664,16 +667,7 @@ class FileService {
     }
   }
 
-  async downloadFile(path: string): Promise<Blob> {
-    try {
-      const response = await fetch(`${this.baseUrl}/files/download?path=${encodeURIComponent(path)}&userId=${this.userId}`)
-      if (!response.ok) throw new Error('Erreur lors du téléchargement')
-      return await response.blob()
-    } catch (error) {
-      console.error('Erreur lors du téléchargement:', error)
-      throw error
-    }
-  }
+
 
   // === GESTION DES FAVORIS ===
 
